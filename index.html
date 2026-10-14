@@ -6,22 +6,16 @@
     <title>PolyTycoon 3D/2D — Multiplayer Board Game</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <!-- Networking libs via jsDelivr (same npm files as unpkg, more reliable CDN for GitHub Pages) -->
     <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mqtt@5.3.4/dist/mqtt.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap');
 
-        * {
-            box-sizing: border-box;
-            user-select: none;
-            -webkit-user-select: none;
-        }
-
+        * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
         body {
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
-            background: radial-gradient(circle at 50% 20%, #0f172a 0%, #020617 100%);
+            background: radial-gradient(circle at 50% 15%, #111c35 0%, #030712 100%);
             color: #f8fafc;
             overflow: hidden;
             height: 100dvh;
@@ -29,82 +23,104 @@
             margin: 0;
         }
 
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar {
-            width: 5px;
-            height: 5px;
-        }
-        ::-webkit-scrollbar-track {
-            background: rgba(15, 23, 42, 0.6);
-        }
-        ::-webkit-scrollbar-thumb {
-            background: rgba(71, 85, 105, 0.8);
-            border-radius: 9999px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: rgba(16, 185, 129, 0.8);
-        }
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.5); }
+        ::-webkit-scrollbar-thumb { background: rgba(71, 85, 105, 0.8); border-radius: 9999px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(16, 185, 129, 0.85); }
 
-        /* 2D Board 11x11 CSS Grid */
+        /* 2D Board 11x11 Grid */
         #board-2d-grid {
             display: grid;
-            grid-template-columns: 1.35fr repeat(9, 1fr) 1.35fr;
-            grid-template-rows: 1.35fr repeat(9, 1fr) 1.35fr;
+            grid-template-columns: 1.38fr repeat(9, 1fr) 1.38fr;
+            grid-template-rows: 1.38fr repeat(9, 1fr) 1.38fr;
             gap: 2px;
             background: #1e293b;
-            border: 3px solid #334155;
-            border-radius: 14px;
-            box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.85), 0 0 35px rgba(16, 185, 129, 0.12);
+            border: 4px solid #334155;
+            border-radius: 18px;
+            box-shadow: 0 25px 70px -15px rgba(0, 0, 0, 0.9), 0 0 40px rgba(16, 185, 129, 0.12);
             position: relative;
             overflow: hidden;
         }
 
         .board-tile {
             position: relative;
-            background: #0f172a;
+            background: linear-gradient(180deg, #0f172a 0%, #0b1120 100%);
             display: flex;
-            flex-direction: column;
             justify-content: space-between;
             align-items: center;
             padding: 2px;
             cursor: pointer;
-            transition: transform 0.14s ease, background-color 0.14s ease, box-shadow 0.14s ease;
+            transition: transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.15s ease, box-shadow 0.15s ease;
             overflow: hidden;
-            border: 1px solid rgba(51, 65, 85, 0.45);
+            border: 1px solid rgba(51, 65, 85, 0.5);
         }
+
+        .board-tile.side-bottom { flex-direction: column; }
+        .board-tile.side-top { flex-direction: column-reverse; }
+        .board-tile.side-left { flex-direction: row-reverse; }
+        .board-tile.side-right { flex-direction: row; }
 
         .board-tile:hover {
             background: #1e293b;
-            z-index: 10;
-            box-shadow: 0 0 0 2px #38bdf8 inset;
+            z-index: 15;
+            transform: scale(1.06);
+            box-shadow: 0 0 0 2px #38bdf8 inset, 0 8px 20px rgba(0, 0, 0, 0.6);
         }
 
         .board-tile.selected-tile {
-            box-shadow: 0 0 0 2px #10b981 inset, 0 0 12px rgba(16, 185, 129, 0.45);
+            box-shadow: 0 0 0 2px #10b981 inset, 0 0 15px rgba(16, 185, 129, 0.45);
             background: #172554;
-            z-index: 12;
+            z-index: 14;
+        }
+
+        @keyframes activeTilePulse {
+            0%, 100% { box-shadow: 0 0 0 2px #fbbf24 inset, 0 0 14px rgba(251, 191, 36, 0.45); }
+            50% { box-shadow: 0 0 0 3px #f59e0b inset, 0 0 22px rgba(245, 158, 11, 0.8); }
+        }
+        .board-tile.active-landed-tile {
+            animation: activeTilePulse 1.8s infinite ease-in-out;
+            background: #1e293b;
+            z-index: 13;
         }
 
         .board-tile.corner-tile {
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
             font-weight: 800;
+            flex-direction: column !important;
             justify-content: center;
+            gap: 2px;
         }
 
         .tile-color-bar {
-            width: 100%;
-            height: 22%;
-            min-height: 6px;
-            border-radius: 2px;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 1px;
             flex-shrink: 0;
+            box-shadow: inset 0 -1px 2px rgba(0,0,0,0.35);
+        }
+        .side-bottom .tile-color-bar, .side-top .tile-color-bar {
+            width: 100%; height: 22%; min-height: 7px; border-radius: 2px;
+        }
+        .side-left .tile-color-bar, .side-right .tile-color-bar {
+            width: 22%; min-width: 7px; height: 100%; flex-direction: column; border-radius: 2px;
+        }
+
+        .tile-body {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            height: 100%;
+            padding: 1px;
+            min-width: 0;
+            min-height: 0;
         }
 
         .tile-name {
-            font-size: clamp(6px, 0.68vw, 10px);
+            font-size: clamp(6px, 0.65vw, 9.5px);
             font-weight: 700;
             text-align: center;
             line-height: 1.05;
@@ -113,39 +129,38 @@
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
             overflow: hidden;
-            padding: 0 1px;
+            word-break: break-word;
         }
 
         .tile-price {
             font-family: 'JetBrains Mono', monospace;
-            font-size: clamp(6px, 0.62vw, 9px);
+            font-size: clamp(5.5px, 0.58vw, 8.5px);
             font-weight: 700;
             color: #94a3b8;
         }
 
         .tile-owner-strip {
             position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
+            bottom: 0; left: 0; right: 0;
+            height: 3.5px;
+            transition: background-color 0.25s ease;
         }
 
         .tile-tokens-wrap {
             position: absolute;
-            inset: 18% 2px 14% 2px;
+            inset: 14% 2px 14% 2px;
             display: flex;
             flex-wrap: wrap;
             align-items: center;
             justify-content: center;
             gap: 2px;
             pointer-events: none;
-            z-index: 5;
+            z-index: 8;
         }
 
         .player-token-dot {
-            width: clamp(12px, 1.4vw, 20px);
-            height: clamp(12px, 1.4vw, 20px);
+            width: clamp(13px, 1.45vw, 22px);
+            height: clamp(13px, 1.45vw, 22px);
             border-radius: 9999px;
             display: flex;
             align-items: center;
@@ -153,65 +168,112 @@
             font-size: clamp(7px, 0.8vw, 11px);
             color: #fff;
             border: 1.5px solid #fff;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.75);
-            transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.85);
+            transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
 
         .player-token-dot.active-turn-token {
-            transform: scale(1.22);
-            box-shadow: 0 0 0 2px #10b981, 0 4px 10px rgba(0, 0, 0, 0.85);
+            transform: scale(1.26);
+            box-shadow: 0 0 0 2.5px #fbbf24, 0 5px 12px rgba(0, 0, 0, 0.9);
+            z-index: 10;
         }
+
+        @keyframes tokenHopPop {
+            0% { transform: scale(1) translateY(0); }
+            50% { transform: scale(1.55) translateY(-8px); }
+            100% { transform: scale(1.26) translateY(0); }
+        }
+        .token-hopping { animation: tokenHopPop 0.13s ease-out; }
 
         /* Board Center Hub */
         #board-center-hub {
             grid-column: 2 / 11;
             grid-row: 2 / 11;
-            background: radial-gradient(circle at center, #0f172a 0%, #020617 100%);
-            border: 1px solid rgba(51, 65, 85, 0.6);
-            border-radius: 10px;
+            background:
+                radial-gradient(circle at 50% 35%, rgba(16, 185, 129, 0.11) 0%, transparent 62%),
+                radial-gradient(circle at center, #0f172a 0%, #020617 100%);
+            border: 1px solid rgba(51, 65, 85, 0.7);
+            border-radius: 12px;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: space-between;
-            padding: clamp(8px, 1.5vw, 20px);
+            padding: clamp(8px, 1.4vw, 16px);
             position: relative;
             overflow: hidden;
+            box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.75);
         }
 
-        /* Dice Animation */
-        @keyframes diceShake {
-            0%, 100% { transform: rotate(0deg) scale(1); }
-            20% { transform: rotate(-18deg) scale(1.1); }
-            40% { transform: rotate(16deg) scale(1.12); }
-            60% { transform: rotate(-12deg) scale(1.08); }
-            80% { transform: rotate(10deg) scale(1.04); }
+        /* 3x3 Real Pip Dice */
+        .pip-die {
+            width: clamp(42px, 4.4vw, 56px);
+            height: clamp(42px, 4.4vw, 56px);
+            background: linear-gradient(145deg, #ffffff 0%, #e2e8f0 100%);
+            border-radius: 13px;
+            padding: clamp(6px, 0.6vw, 9px);
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 2px;
+            box-shadow:
+                0 10px 20px -5px rgba(0, 0, 0, 0.7),
+                inset 0 2px 3px rgba(255, 255, 255, 0.9),
+                inset 0 -3px 6px rgba(100, 116, 139, 0.45);
+            border: 1px solid #cbd5e1;
+            transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
-        .dice-rolling {
-            animation: diceShake 0.42s ease-in-out infinite;
+        .pip-die-sm { width: 34px; height: 34px; border-radius: 9px; padding: 5px; }
+
+        .pip-dot {
+            width: 82%; height: 82%; margin: auto;
+            border-radius: 9999px;
+            background: radial-gradient(circle at 35% 35%, #334155 0%, #0f172a 100%);
+            opacity: 0;
+            transform: scale(0.3);
+            transition: opacity 0.12s ease, transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
+        .pip-dot.active { opacity: 1; transform: scale(1); }
+        .pip-die[data-val="1"] .pip-dot.active {
+            background: radial-gradient(circle at 35% 35%, #ef4444 0%, #b91c1c 100%);
+            transform: scale(1.35);
+        }
+
+        @keyframes diceTumble3D {
+            0%   { transform: translateY(0) rotate(0deg) scale(1); }
+            25%  { transform: translateY(-14px) rotate(-24deg) scale(1.12); }
+            50%  { transform: translateY(-5px) rotate(20deg) scale(1.08); }
+            75%  { transform: translateY(-10px) rotate(-14deg) scale(1.1); }
+            100% { transform: translateY(0) rotate(0deg) scale(1); }
+        }
+        .dice-rolling .pip-die { animation: diceTumble3D 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) infinite; }
+        .dice-rolling .pip-die:nth-child(2) { animation-delay: 0.06s; }
+
+        @keyframes pulseGlowGreen {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.55), 0 8px 20px -4px rgba(16, 185, 129, 0.45); }
+            50% { box-shadow: 0 0 0 7px rgba(16, 185, 129, 0), 0 12px 26px -2px rgba(16, 185, 129, 0.7); }
+        }
+        .cta-roll-pulse { animation: pulseGlowGreen 2s infinite; }
 
         @keyframes floatUpFade {
             0% { opacity: 0; transform: translateY(16px) scale(0.8); }
             15% { opacity: 1; transform: translateY(0px) scale(1.05); }
-            80% { opacity: 1; transform: translateY(-18px) scale(1); }
-            100% { opacity: 0; transform: translateY(-34px) scale(0.9); }
+            80% { opacity: 1; transform: translateY(-22px) scale(1); }
+            100% { opacity: 0; transform: translateY(-38px) scale(0.9); }
         }
-        .floating-emote-anim {
-            animation: floatUpFade 2.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
+        .floating-emote-anim { animation: floatUpFade 2.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
     </style>
 </head>
 <body class="flex flex-col h-screen w-screen overflow-hidden select-none">
 
     <!-- TOP HEADER BAR -->
-    <header class="h-14 shrink-0 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-3 sm:px-5 flex items-center justify-between gap-2 z-30">
+    <header class="h-14 shrink-0 bg-slate-900/90 backdrop-blur-md border-b border-slate-800/90 px-3 sm:px-5 flex items-center justify-between gap-2 z-30">
         <div class="flex items-center gap-2.5">
-            <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-cyan-600 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+            <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-cyan-600 flex items-center justify-center shadow-lg shadow-emerald-500/25">
                 <i class="fa-solid fa-cubes-stacked text-white text-base"></i>
             </div>
             <div>
                 <div class="flex items-center gap-2">
-                    <h1 class="font-extrabold text-sm sm:text-lg tracking-tight bg-gradient-to-r from-white via-slate-100 to-emerald-400 bg-clip-text text-transparent">POLYTYCOON</h1>
+                    <h1 class="font-black text-sm sm:text-lg tracking-tight bg-gradient-to-r from-white via-slate-100 to-emerald-400 bg-clip-text text-transparent">POLYTYCOON</h1>
                     <span id="connection-badge" class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">Ready</span>
                 </div>
                 <p id="user-id-display" class="text-[10px] text-slate-400 font-mono truncate max-w-[140px] sm:max-w-xs" title="Your anonymous Session ID">ID: initializing...</p>
@@ -231,13 +293,11 @@
                 </button>
             </div>
 
-            <!-- Map Theme Selector -->
-            <select id="header-map-select" onchange="changeMapTheme(this.value)" class="hidden md:block bg-slate-800 border border-slate-700 text-slate-200 text-xs font-semibold rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-emerald-500">
+            <select id="header-map-select" onchange="changeMapTheme(this.value)" class="hidden md:block bg-slate-800 border border-slate-700 text-slate-200 text-xs font-semibold rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-emerald-500 cursor-pointer">
                 <option value="malaysia">🇲🇾 Malaysia Edition</option>
                 <option value="classic">🎩 Classic Atlantic</option>
             </select>
 
-            <!-- 2D / 3D Switcher -->
             <div class="flex bg-slate-800 p-0.5 rounded-xl border border-slate-700">
                 <button id="btn-view-2d" onclick="setBoardViewMode('2d')" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-600 text-white transition">2D</button>
                 <button id="btn-view-3d" onclick="setBoardViewMode('3d')" class="px-2.5 py-1 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition">3D</button>
@@ -246,6 +306,10 @@
 
         <!-- Right Quick Actions -->
         <div class="flex items-center gap-1.5 sm:gap-2">
+            <button onclick="downloadSelfAsIndexHtml()" class="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-bold flex items-center gap-1.5 transition" title="Download this page as index.html">
+                <i class="fa-solid fa-download text-emerald-400"></i>
+                <span class="hidden xl:inline">Save HTML</span>
+            </button>
             <button onclick="toggleSoundMute()" id="btn-sound-toggle" class="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 flex items-center justify-center text-slate-300 transition" title="Toggle Sound Effects">
                 <i class="fa-solid fa-volume-high text-xs"></i>
             </button>
@@ -263,48 +327,16 @@
     <!-- MAIN GAME WORKSPACE -->
     <main class="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
 
-        <!-- LEFT SIDEBAR: PLAYERS ROSTER & TURN CONTROLS -->
-        <aside class="w-full lg:w-80 shrink-0 bg-slate-900/75 border-b lg:border-b-0 lg:border-r border-slate-800 flex flex-col justify-between p-2.5 sm:p-3.5 gap-3 overflow-y-auto z-20 max-h-[34vh] lg:max-h-none">
+        <!-- LEFT SIDEBAR: PLAYERS ROSTER & PORTFOLIO -->
+        <aside class="w-full lg:w-72 shrink-0 bg-slate-900/80 border-b lg:border-b-0 lg:border-r border-slate-800/90 flex flex-col justify-between p-2.5 sm:p-3.5 gap-3 overflow-y-auto z-20 max-h-[26vh] lg:max-h-none">
             <div class="space-y-3">
-                <!-- Turn Banner & Controls -->
-                <div class="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-3 space-y-2.5 shadow-lg">
+                <!-- Active Player Compact Status Card -->
+                <div class="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-3 space-y-2 shadow-lg">
                     <div class="flex items-center justify-between">
-                        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Current Turn</span>
+                        <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Active Turn</span>
                         <span id="turn-phase-badge" class="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">ROLL</span>
                     </div>
-                    <div id="active-player-banner" class="flex items-center gap-2.5">
-                        <div class="w-8 h-8 rounded-full bg-sky-500 flex items-center justify-center text-white font-bold">
-                            <i class="fa-solid fa-hat-cowboy"></i>
-                        </div>
-                        <div class="min-w-0 flex-1">
-                            <div class="font-extrabold text-sm truncate">TycoonAlex</div>
-                            <div class="text-xs text-emerald-400 font-mono font-bold">$1,500</div>
-                        </div>
-                    </div>
-
-                    <!-- Primary Action Buttons -->
-                    <div class="grid grid-cols-2 gap-2 pt-1">
-                        <button id="btn-roll-dice" onclick="handleRollDice()" class="col-span-2 py-2.5 px-4 rounded-xl font-extrabold text-xs sm:text-sm bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-2 transition disabled:opacity-40 disabled:pointer-events-none">
-                            <i class="fa-solid fa-dice text-base"></i>
-                            <span>ROLL DICE</span>
-                        </button>
-                        <button id="btn-buy-property" onclick="handleBuyProperty()" class="hidden py-2 px-3 rounded-xl font-bold text-xs bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md flex items-center justify-center gap-1.5 transition">
-                            <i class="fa-solid fa-cart-shopping"></i>
-                            <span id="btn-buy-label">Buy</span>
-                        </button>
-                        <button id="btn-build-house" onclick="handleUpgradeCurrentTile()" class="hidden py-2 px-3 rounded-xl font-bold text-xs bg-sky-500 hover:bg-sky-400 text-slate-950 shadow-md flex items-center justify-center gap-1.5 transition">
-                            <i class="fa-solid fa-house-chimney-medical"></i>
-                            <span id="btn-build-label">Build</span>
-                        </button>
-                        <button id="btn-pay-bail" onclick="handlePayJailBail()" class="hidden col-span-2 py-2 px-3 rounded-xl font-bold text-xs bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 flex items-center justify-center gap-1.5 transition">
-                            <i class="fa-solid fa-key"></i>
-                            <span>Pay $50 Jail Fine</span>
-                        </button>
-                        <button id="btn-end-turn" onclick="handleEndTurn()" class="hidden col-span-2 py-2.5 px-4 rounded-xl font-extrabold text-xs sm:text-sm bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/25 flex items-center justify-center gap-2 transition">
-                            <i class="fa-solid fa-forward-step"></i>
-                            <span>END TURN</span>
-                        </button>
-                    </div>
+                    <div id="active-player-banner" class="flex items-center gap-2.5"></div>
                 </div>
 
                 <!-- Players Roster -->
@@ -318,9 +350,9 @@
             </div>
 
             <!-- Owned Properties Summary -->
-            <div class="bg-slate-800/50 border border-slate-800 rounded-xl p-2.5 hidden lg:block">
-                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">My Portfolio</div>
-                <div id="my-portfolio-pills" class="flex flex-wrap gap-1 max-h-24 overflow-y-auto"></div>
+            <div class="bg-slate-800/45 border border-slate-800 rounded-xl p-2.5 hidden lg:block">
+                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">My Deeds Portfolio</div>
+                <div id="my-portfolio-pills" class="flex flex-wrap gap-1 max-h-28 overflow-y-auto"></div>
             </div>
         </aside>
 
@@ -332,68 +364,115 @@
                 <span id="banner-toast-text">Welcome to PolyTycoon!</span>
             </div>
 
-            <!-- Floating Emotes Container -->
+            <!-- Floating Emotes & Cash Popups Container -->
             <div id="floating-emote-container" class="pointer-events-none absolute inset-0 flex items-center justify-center z-40"></div>
 
             <!-- 2D BOARD WRAPPER -->
             <div id="board-2d-wrapper" class="flex items-center justify-center">
                 <div id="board-2d-grid" style="width: 600px; height: 600px;">
-                    <!-- Center Hub inside 11x11 grid -->
+                    <!-- Center Command Console inside 11x11 grid -->
                     <div id="board-center-hub">
-                        <!-- Top Row: Map Badge & Jackpot -->
+                        <!-- Top Row: Edition Badge & Jackpot Pot -->
                         <div class="w-full flex items-center justify-between gap-2">
                             <span id="center-map-badge" class="text-[10px] sm:text-xs font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
                                 🇲🇾 Malaysia Edition
                             </span>
                             <div class="flex items-center gap-1.5 bg-amber-500/15 border border-amber-500/30 px-2.5 py-1 rounded-lg">
                                 <i class="fa-solid fa-sack-dollar text-amber-400 text-xs"></i>
-                                <span class="text-[10px] sm:text-xs font-mono font-bold text-amber-300">Pot: $<span id="center-jackpot-amount">0</span></span>
+                                <span class="text-[10px] sm:text-xs font-mono font-bold text-amber-300">Jackpot: $<span id="center-jackpot-amount">0</span></span>
                             </div>
                         </div>
 
-                        <!-- Center Logo & Dice Stage -->
-                        <div class="flex flex-col items-center justify-center gap-2 sm:gap-3 my-auto">
+                        <!-- Centerpiece Dice & Primary Action Console -->
+                        <div class="flex flex-col items-center justify-center gap-2 sm:gap-3 my-auto w-full max-w-xs">
                             <div class="text-center">
-                                <h2 class="font-black text-lg sm:text-3xl tracking-tight bg-gradient-to-r from-white via-emerald-200 to-teal-400 bg-clip-text text-transparent">POLYTYCOON</h2>
-                                <p id="center-status-subtitle" class="text-[10px] sm:text-xs text-slate-400 font-medium mt-0.5">Roll the dice to build your empire</p>
+                                <h2 class="font-black text-base sm:text-2xl tracking-tight bg-gradient-to-r from-white via-emerald-200 to-teal-400 bg-clip-text text-transparent">POLYTYCOON</h2>
+                                <p id="center-status-subtitle" class="text-[10px] sm:text-xs text-slate-400 font-medium">Roll the dice to build your empire</p>
                             </div>
 
-                            <!-- Visual Dice Pair -->
-                            <div id="dice-visual-box" onclick="handleRollDice()" class="flex items-center gap-3 sm:gap-4 cursor-pointer py-2 px-4 rounded-2xl bg-slate-900/90 border border-slate-700/80 shadow-xl hover:border-emerald-500/50 transition" title="Click to Roll Dice">
-                                <div id="die-face-1" class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-white to-slate-200 text-slate-900 font-black text-lg sm:text-2xl flex items-center justify-center shadow-md">1</div>
-                                <div id="die-face-2" class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-white to-slate-200 text-slate-900 font-black text-lg sm:text-2xl flex items-center justify-center shadow-md">1</div>
+                            <!-- 3D Pip Dice Stage -->
+                            <div class="flex flex-col items-center gap-1.5">
+                                <div id="dice-visual-box" onclick="handleRollDice()" class="flex items-center gap-3 sm:gap-4 cursor-pointer py-2.5 px-5 rounded-2xl bg-slate-900/90 border border-slate-700/80 shadow-2xl hover:border-emerald-500/60 transition group" title="Click to Roll Dice">
+                                    <div id="die-face-1" class="pip-die" data-val="1"></div>
+                                    <div id="die-face-2" class="pip-die" data-val="1"></div>
+                                </div>
+                                <div class="flex items-center gap-1.5 h-5">
+                                    <span id="dice-sum-pill" class="text-[10px] font-mono font-extrabold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">Total: 2</span>
+                                    <span id="dice-doubles-pill" class="hidden text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse">⚡ DOUBLES!</span>
+                                </div>
+                            </div>
+
+                            <!-- Centered Primary Action Console (Roll / Buy / Build / End Turn) -->
+                            <div class="w-full flex flex-wrap items-center justify-center gap-2 pt-0.5">
+                                <button id="btn-roll-dice" onclick="handleRollDice()" class="cta-roll-pulse w-full max-w-[220px] py-2.5 px-5 rounded-2xl font-black text-xs sm:text-sm bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white shadow-xl flex items-center justify-center gap-2 transition active:scale-95 disabled:opacity-40 disabled:pointer-events-none">
+                                    <i class="fa-solid fa-dice text-base"></i>
+                                    <span>ROLL DICE</span>
+                                </button>
+
+                                <button id="btn-buy-property" onclick="handleBuyProperty()" class="hidden py-2 px-3.5 rounded-xl font-extrabold text-xs bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-lg flex items-center justify-center gap-1.5 transition active:scale-95">
+                                    <i class="fa-solid fa-cart-shopping"></i>
+                                    <span id="btn-buy-label">Buy</span>
+                                </button>
+
+                                <button id="btn-build-house" onclick="handleUpgradeCurrentTile()" class="hidden py-2 px-3.5 rounded-xl font-extrabold text-xs bg-sky-400 hover:bg-sky-300 text-slate-950 shadow-lg flex items-center justify-center gap-1.5 transition active:scale-95">
+                                    <i class="fa-solid fa-house-chimney-medical"></i>
+                                    <span id="btn-build-label">Build</span>
+                                </button>
+
+                                <button id="btn-pay-bail" onclick="handlePayJailBail()" class="hidden py-2 px-3.5 rounded-xl font-bold text-xs bg-rose-500/25 hover:bg-rose-500/35 text-rose-200 border border-rose-500/40 flex items-center justify-center gap-1.5 transition">
+                                    <i class="fa-solid fa-key"></i>
+                                    <span>Pay $50 Bail</span>
+                                </button>
+
+                                <button id="btn-end-turn" onclick="handleEndTurn()" class="hidden py-2 px-5 rounded-xl font-black text-xs sm:text-sm bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2 transition active:scale-95">
+                                    <i class="fa-solid fa-forward-step"></i>
+                                    <span>END TURN</span>
+                                </button>
                             </div>
                         </div>
 
-                        <!-- Bottom Emote Bar -->
-                        <div class="w-full flex flex-col items-center gap-1">
+                        <!-- Bottom Quick Emote Bar -->
+                        <div class="w-full flex flex-col items-center">
                             <div id="emote-bar-container" class="flex items-center justify-center gap-1 sm:gap-1.5 bg-slate-900/90 border border-slate-800 px-2.5 py-1 rounded-xl"></div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- 3D BOARD WRAPPER -->
+            <!-- 3D BOARD WRAPPER + FLOATING BOTTOM DOCK -->
             <div id="board-3d-wrapper" class="hidden w-full h-full relative items-center justify-center">
                 <div id="three-canvas-container" class="w-full h-full"></div>
-                <div class="absolute bottom-3 left-1/2 -translate-x-1/2 bg-slate-900/85 border border-slate-700 px-3 py-1.5 rounded-xl text-[11px] text-slate-300 flex items-center gap-3 pointer-events-none">
-                    <span><i class="fa-solid fa-computer-mouse text-emerald-400 mr-1"></i>Drag to Orbit</span>
-                    <span><i class="fa-solid fa-magnifying-glass-plus text-sky-400 mr-1"></i>Scroll to Zoom</span>
+
+                <!-- 3D Floating Bottom Action Dock -->
+                <div class="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 bg-slate-900/90 backdrop-blur-md border border-slate-700/90 px-4 py-2.5 rounded-2xl shadow-2xl flex items-center gap-3">
+                    <div onclick="handleRollDice()" class="flex items-center gap-2 cursor-pointer pr-2 border-r border-slate-800">
+                        <div id="die-3d-dock-1" class="pip-die pip-die-sm" data-val="1"></div>
+                        <div id="die-3d-dock-2" class="pip-die pip-die-sm" data-val="1"></div>
+                    </div>
+                    <button id="btn-3d-roll" onclick="handleRollDice()" class="py-2 px-4 rounded-xl font-black text-xs bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-lg flex items-center gap-1.5 transition">
+                        <i class="fa-solid fa-dice"></i>
+                        <span>ROLL</span>
+                    </button>
+                    <button id="btn-3d-buy" onclick="handleBuyProperty()" class="hidden py-2 px-3.5 rounded-xl font-extrabold text-xs bg-amber-500 hover:bg-amber-400 text-slate-950 transition">
+                        <span id="btn-3d-buy-label">Buy</span>
+                    </button>
+                    <button id="btn-3d-build" onclick="handleUpgradeCurrentTile()" class="hidden py-2 px-3.5 rounded-xl font-extrabold text-xs bg-sky-400 hover:bg-sky-300 text-slate-950 transition">
+                        <span>Build</span>
+                    </button>
+                    <button id="btn-3d-end" onclick="handleEndTurn()" class="hidden py-2 px-4 rounded-xl font-black text-xs bg-indigo-600 hover:bg-indigo-500 text-white transition">
+                        <span>END TURN</span>
+                    </button>
                 </div>
             </div>
         </section>
 
-        <!-- RIGHT SIDEBAR: PROPERTY DEED INSPECTOR & GAME LOG -->
-        <aside class="w-full lg:w-80 shrink-0 bg-slate-900/75 border-t lg:border-t-0 lg:border-l border-slate-800 flex flex-col justify-between p-2.5 sm:p-3.5 gap-3 overflow-y-auto z-20 max-h-[28vh] lg:max-h-none">
-            <!-- Tile / Deed Inspector -->
-            <div id="tile-inspector-panel" class="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-3 space-y-2.5">
-                <!-- Populated dynamically -->
-            </div>
+        <!-- RIGHT SIDEBAR: AUTHENTIC TITLE DEED INSPECTOR & LIVE LOG -->
+        <aside class="w-full lg:w-80 shrink-0 bg-slate-900/80 border-t lg:border-t-0 lg:border-l border-slate-800/90 flex flex-col justify-between p-2.5 sm:p-3.5 gap-3 overflow-y-auto z-20 max-h-[28vh] lg:max-h-none">
+            <div id="tile-inspector-panel" class="bg-slate-800/85 border border-slate-700/80 rounded-2xl p-3 space-y-2.5 shadow-lg"></div>
 
-            <!-- Live Activity Log -->
-            <div class="flex-1 flex flex-col min-h-[120px] bg-slate-950/70 border border-slate-800/90 rounded-2xl p-2.5 overflow-hidden">
+            <div class="flex-1 flex flex-col min-h-[120px] bg-slate-950/75 border border-slate-800/90 rounded-2xl p-2.5 overflow-hidden">
                 <div class="flex items-center justify-between pb-1.5 mb-1.5 border-b border-slate-800">
-                    <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Live Game Log</span>
+                    <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Live Activity Log</span>
                     <button onclick="clearLocalLogs()" class="text-[10px] text-slate-500 hover:text-slate-300">Clear</button>
                 </div>
                 <div id="game-log-list" class="flex-1 overflow-y-auto space-y-1.5 pr-1 text-xs font-medium"></div>
@@ -401,12 +480,9 @@
         </aside>
     </main>
 
-    <!-- ================================================================= -->
-    <!-- PRE-GAME START MENU & MULTIPLAYER LOBBY MODAL                     -->
-    <!-- ================================================================= -->
+    <!-- PRE-GAME START MENU & MULTIPLAYER LOBBY MODAL -->
     <div id="start-menu-modal" class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
         <div class="bg-slate-900 border border-slate-700/80 rounded-3xl max-w-2xl w-full p-4 sm:p-6 shadow-2xl space-y-4 my-auto max-h-[94vh] overflow-y-auto">
-            <!-- Modal Header -->
             <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3">
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg">
@@ -414,13 +490,12 @@
                     </div>
                     <div>
                         <h2 class="text-lg sm:text-xl font-black tracking-tight text-white">PolyTycoon Setup & Lobby</h2>
-                        <p class="text-xs text-slate-400">Play solo against AI bots, Pass & Play, or Live P2P/MQTT Online</p>
+                        <p class="text-xs text-slate-400">Solo vs AI Bots, Pass & Play, or Live P2P/MQTT Online</p>
                     </div>
                 </div>
                 <span id="start-lobby-peer-count" class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Local Mode</span>
             </div>
 
-            <!-- Mode Tabs -->
             <div class="grid grid-cols-2 gap-2 bg-slate-800/90 p-1 rounded-2xl border border-slate-700">
                 <button id="tab-mode-local" onclick="setStartMenuMode('local')" class="py-2 px-3 rounded-xl font-bold text-xs sm:text-sm bg-emerald-600 text-white transition flex items-center justify-center gap-2">
                     <i class="fa-solid fa-couch"></i>
@@ -432,7 +507,6 @@
                 </button>
             </div>
 
-            <!-- Online Room Controls (Shown in Multiplayer mode) -->
             <div id="multiplayer-room-box" class="hidden bg-slate-800/60 border border-indigo-500/30 rounded-2xl p-3.5 space-y-3">
                 <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
                     <div>
@@ -447,26 +521,19 @@
 
                 <div class="flex items-center gap-2">
                     <input id="lobby-join-code" type="text" maxlength="6" placeholder="ROOM CODE (e.g. K9X2)" class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-mono font-bold uppercase text-white focus:outline-none focus:border-indigo-500">
-                    <button onclick="joinOnlineRoom()" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition">
-                        Join Room
-                    </button>
+                    <button onclick="joinOnlineRoom()" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition">Join Room</button>
                     <button onclick="copyInviteLink()" class="px-3 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold text-xs transition" title="Copy Invite Link">
                         <i class="fa-solid fa-link"></i>
                     </button>
                 </div>
-
                 <p id="lobby-room-status" class="hidden text-xs text-emerald-400 font-semibold"></p>
             </div>
 
-            <!-- My Player Customization Card -->
             <div class="bg-slate-800/60 border border-slate-700/80 rounded-2xl p-3.5 space-y-3">
                 <div class="flex items-center justify-between">
                     <span class="text-xs font-bold uppercase tracking-wider text-slate-300">Your Tycoon Profile</span>
-                    <button id="btn-my-ready-toggle" onclick="toggleMyLobbyReady()" class="px-3 py-1 rounded-lg text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                        ✅ Ready
-                    </button>
+                    <button id="btn-my-ready-toggle" onclick="toggleMyLobbyReady()" class="px-3 py-1 rounded-lg text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">✅ Ready</button>
                 </div>
-
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                         <label class="text-[11px] text-slate-400 font-semibold block mb-1">Display Name</label>
@@ -482,7 +549,6 @@
                 </div>
             </div>
 
-            <!-- Lobby Seats Roster & Bot Controls -->
             <div class="bg-slate-800/60 border border-slate-700/80 rounded-2xl p-3.5 space-y-2.5">
                 <div class="flex items-center justify-between">
                     <span class="text-xs font-bold uppercase tracking-wider text-slate-300">Lobby Seats (Max 6)</span>
@@ -494,7 +560,6 @@
                 <div id="start-lobby-seats-list" class="space-y-1.5 max-h-44 overflow-y-auto pr-1"></div>
             </div>
 
-            <!-- Board Theme & Rules Row -->
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 bg-slate-800/40 border border-slate-800 rounded-2xl p-3">
                 <div>
                     <label class="text-[11px] text-slate-400 font-semibold block mb-1">Board Edition</label>
@@ -523,21 +588,14 @@
                 </div>
             </div>
 
-            <!-- Start Match / Resume Footer -->
             <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
-                <button id="btn-close-start-modal" onclick="closeStartMenuModal()" class="hidden px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition">
-                    Resume Current Game
-                </button>
-                <button id="btn-launch-match" onclick="startMatchFromLobby()" class="flex-1 sm:flex-none px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-extrabold text-sm shadow-lg shadow-emerald-600/25 transition">
-                    🚀 Start Match
-                </button>
+                <button id="btn-close-start-modal" onclick="closeStartMenuModal()" class="hidden px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition">Resume Current Game</button>
+                <button id="btn-launch-match" onclick="startMatchFromLobby()" class="flex-1 sm:flex-none px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-extrabold text-sm shadow-lg shadow-emerald-600/25 transition">🚀 Start Match</button>
             </div>
         </div>
     </div>
 
-    <!-- ================================================================= -->
-    <!-- SHARE / MULTIPLAYER INVITE MODAL                                  -->
-    <!-- ================================================================= -->
+    <!-- SHARE / MULTIPLAYER INVITE MODAL -->
     <div id="share-room-modal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm hidden items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-md w-full p-5 space-y-4 shadow-2xl">
             <div class="flex items-center justify-between border-b border-slate-800 pb-3">
@@ -545,56 +603,50 @@
                     <i class="fa-solid fa-tower-broadcast text-emerald-400"></i>
                     <span>Multiplayer Room & Invite</span>
                 </h3>
-                <button onclick="closeShareModal()" class="text-slate-400 hover:text-white">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
+                <button onclick="closeShareModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
             </div>
-
             <div class="bg-slate-800/80 border border-slate-700 rounded-2xl p-3.5 text-center space-y-1">
                 <div class="text-[11px] uppercase font-bold text-slate-400">Active Room Code</div>
                 <div id="share-modal-room-code" class="font-mono font-black text-3xl tracking-widest text-emerald-400">LOCAL</div>
                 <div id="share-modal-p2p-status" class="text-xs text-slate-300 pt-1">Local Pass & Play Mode</div>
             </div>
-
             <div class="space-y-1.5">
                 <label class="text-xs font-bold text-slate-400">Your Player Name</label>
                 <input id="lobby-player-name" type="text" maxlength="20" value="TycoonAlex" oninput="updateMyLobbyProfile('name', this.value)" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-white">
             </div>
-
             <div class="space-y-1.5">
                 <label class="text-xs font-bold text-slate-400">Shareable Invite URL</label>
                 <div class="flex gap-2">
                     <input id="share-url-input" type="text" readonly class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-slate-300">
-                    <button onclick="copyInviteLink()" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs">
-                        Copy
-                    </button>
+                    <button onclick="copyInviteLink()" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs">Copy</button>
                 </div>
             </div>
-
             <div class="flex items-center justify-between gap-2 pt-2 border-t border-slate-800">
-                <button onclick="createOnlineRoom()" class="flex-1 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs">
-                    Create New Online Room
-                </button>
-                <button onclick="closeShareModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs">
-                    Done
-                </button>
+                <button onclick="createOnlineRoom()" class="flex-1 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs">Create New Online Room</button>
+                <button onclick="closeShareModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs">Done</button>
             </div>
         </div>
     </div>
 
     <script>
-        // =====================================================================
-        // MAP THEMES (MALAYSIA EDITION & CLASSIC ATLANTIC)
-        // =====================================================================
-        const TOKEN_ICONS = {
-            hat: 'fa-hat-cowboy',
-            car: 'fa-car-side',
-            ship: 'fa-ship',
-            crown: 'fa-crown',
-            dragon: 'fa-dragon',
-            rocket: 'fa-rocket'
-        };
+        // Helper so user can download this exact file as index.html anytime
+        function downloadSelfAsIndexHtml() {
+            const htmlContent = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+            const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'index.html';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
 
+        const TOKEN_ICONS = {
+            hat: 'fa-hat-cowboy', car: 'fa-car-side', ship: 'fa-ship',
+            crown: 'fa-crown', dragon: 'fa-dragon', rocket: 'fa-rocket'
+        };
         const PLAYER_COLORS = ['#38bdf8', '#f43f5e', '#10b981', '#f59e0b', '#a855f7', '#ec4899'];
 
         const MAP_THEMES = {
@@ -648,7 +700,7 @@
                     { text: 'Advance to Komtar George Town!', action: 'move', target: 19 },
                     { text: 'Petronas dividend payout! Collect $150.', action: 'cash', amount: 150 },
                     { text: 'Speeding fine on PLUS Highway! Pay $50.', action: 'cash', amount: -50 },
-                    { text: 'Caught in traffic violation! Go directly to Jail.', action: 'jail' }
+                    { text: 'Traffic violation! Go directly to Jail.', action: 'jail' }
                 ],
                 chest: [
                     { text: 'LHDN Tax Refund! Collect $100.', action: 'cash', amount: 100 },
@@ -671,7 +723,7 @@
                     { id: 7, name: 'Chance', type: 'chance', price: 0, color: '#f59e0b' },
                     { id: 8, name: 'Vermont Ave', type: 'property', price: 100, rent: [6, 30, 90, 270, 400, 550], houseCost: 50, color: '#38bdf8' },
                     { id: 9, name: 'Connecticut Ave', type: 'property', price: 120, rent: [8, 40, 100, 300, 450, 600], houseCost: 50, color: '#38bdf8' },
-                    { id: 10, name: 'Jail / Just Visiting', type: 'jail', price: 0, color: '#f97316' },
+                    { id: 10, name: 'Jail / Visiting', type: 'jail', price: 0, color: '#f97316' },
                     { id: 11, name: 'St. Charles Place', type: 'property', price: 140, rent: [10, 50, 150, 450, 625, 750], houseCost: 100, color: '#ec4899' },
                     { id: 12, name: 'Electric Company', type: 'utility', price: 150, color: '#eab308' },
                     { id: 13, name: 'States Ave', type: 'property', price: 140, rent: [10, 50, 150, 450, 625, 750], houseCost: 100, color: '#ec4899' },
@@ -724,44 +776,27 @@
         let CHANCE_CARDS = MAP_THEMES.malaysia.chance;
         let CHEST_CARDS = MAP_THEMES.malaysia.chest;
 
-        // =====================================================================
-        // CORE GAME STATE
-        // =====================================================================
-        let db = null;
-        let currentUser = null;
-        let appId = 'polytycoon-v4';
-        let activeRoomId = 'LOCAL';
-        let isApplyingRemoteUpdate = false;
-        let lastSeenEmoteTimestamp = 0;
-        let selectedTileId = 0;
-        let boardViewMode = '2d';
-        let soundMuted = false;
-        let botTurnTimer = null;
+        let db = null, currentUser = null, appId = 'polytycoon-v4', activeRoomId = 'LOCAL';
+        let isApplyingRemoteUpdate = false, lastSeenEmoteTimestamp = 0;
+        let selectedTileId = 0, boardViewMode = '2d', soundMuted = false, botTurnTimer = null, isAnimatingMove = false;
 
         const gameState = {
             roomCode: 'LOCAL',
             mapId: 'malaysia',
-            status: 'setup', // 'setup' | 'playing'
+            status: 'setup',
             turnIndex: 0,
-            turnPhase: 'ROLL', // 'ROLL' | 'END'
-            lastDice: [1, 1, 0],
+            turnPhase: 'ROLL',
+            lastDice: [1, 1, 2],
             doublesCount: 0,
             freeParkingPot: 0,
-            rules: {
-                startingCash: 1500,
-                goSalary: 200,
-                doubleOnGo: true,
-                freeParkingJackpot: true
-            },
+            rules: { startingCash: 1500, goSalary: 200, doubleOnGo: true, freeParkingJackpot: true },
             lastEmote: null,
             properties: {},
             players: [
                 { id: 'p1', name: 'TycoonAlex', color: '#38bdf8', token: 'hat', cash: 1500, position: 0, inJail: false, jailTurns: 0, isBot: false, ready: true, bankrupt: false },
                 { id: 'bot_1', name: 'CyberBot AI', color: '#f43f5e', token: 'rocket', cash: 1500, position: 0, inJail: false, jailTurns: 0, isBot: true, ready: true, bankrupt: false }
             ],
-            logs: [
-                { time: 'Now', text: 'Welcome to PolyTycoon! Configure your match or start rolling.', type: 'system' }
-            ],
+            logs: [{ time: 'Now', text: 'Welcome to PolyTycoon! Configure your match or start rolling.', type: 'system' }],
             stateVersion: 0
         };
 
@@ -770,9 +805,7 @@
             return gameState.players[gameState.turnIndex % gameState.players.length] || gameState.players[0];
         }
 
-        // =====================================================================
-        // SOUND SYNTHESIZER (WEB AUDIO API)
-        // =====================================================================
+        // Web Audio Sound Effects
         let audioCtx = null;
         function playSoundEffect(type) {
             if (soundMuted) return;
@@ -792,31 +825,27 @@
                     osc.frequency.setValueAtTime(783.99, now + 0.16);
                     gain.gain.setValueAtTime(0.14, now);
                     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
-                    osc.start(now);
-                    osc.stop(now + 0.35);
+                    osc.start(now); osc.stop(now + 0.35);
                 } else if (type === 'roll') {
                     osc.type = 'sine';
                     osc.frequency.setValueAtTime(280, now);
                     osc.frequency.exponentialRampToValueAtTime(620, now + 0.14);
                     gain.gain.setValueAtTime(0.12, now);
                     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
-                    osc.start(now);
-                    osc.stop(now + 0.16);
+                    osc.start(now); osc.stop(now + 0.16);
                 } else if (type === 'jail' || type === 'tax') {
                     osc.type = 'sawtooth';
                     osc.frequency.setValueAtTime(220, now);
                     osc.frequency.setValueAtTime(165, now + 0.15);
                     gain.gain.setValueAtTime(0.12, now);
                     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
-                    osc.start(now);
-                    osc.stop(now + 0.35);
+                    osc.start(now); osc.stop(now + 0.35);
                 } else {
                     osc.type = 'sine';
-                    osc.frequency.setValueAtTime(440, now);
-                    gain.gain.setValueAtTime(0.08, now);
-                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
-                    osc.start(now);
-                    osc.stop(now + 0.09);
+                    osc.frequency.setValueAtTime(460, now);
+                    gain.gain.setValueAtTime(0.07, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+                    osc.start(now); osc.stop(now + 0.08);
                 }
             } catch (e) {}
         }
@@ -824,21 +853,11 @@
         function toggleSoundMute() {
             soundMuted = !soundMuted;
             const btn = document.getElementById('btn-sound-toggle');
-            if (btn) {
-                btn.innerHTML = soundMuted
-                    ? '<i class="fa-solid fa-volume-xmark text-xs text-rose-400"></i>'
-                    : '<i class="fa-solid fa-volume-high text-xs"></i>';
-            }
+            if (btn) btn.innerHTML = soundMuted ? '<i class="fa-solid fa-volume-xmark text-xs text-rose-400"></i>' : '<i class="fa-solid fa-volume-high text-xs"></i>';
         }
 
         // =====================================================================
         // MULTIPLAYER NETWORKING — serverless, works from GitHub Pages (HTTPS)
-        //   1. MQTT over WSS on two public brokers in parallel (primary relay, firewall-proof)
-        //   2. PeerJS WebRTC direct link to the host (lower latency, best effort)
-        //   3. BroadcastChannel for multi-tab testing in one browser
-        // Every packet carries a msgId, so duplicates arriving over several transports
-        // are dropped. Every room state carries a (version, updatedAt, author) stamp,
-        // so stale or out-of-order states never overwrite newer ones.
         // =====================================================================
         const NET_PROTOCOL_VERSION = 'v4';
         const MQTT_BROKER_URLS = [
@@ -857,7 +876,7 @@
         let peerConnections = [];
         let peerHeartbeatInterval = null;
         let joinRetryInterval = null;
-        let mqttClient = null; // first broker client (kept for backwards compatibility)
+        let mqttClient = null;
         let mqttClients = [];
         let mqttConnected = false;
         let activeMqttTopic = null;
@@ -866,10 +885,9 @@
         let isRoomHost = true;
         let pendingJoinPlayerObj = null;
         let isConfirmedInHostRoster = false;
-        let startMenuMode = 'local'; // 'local' | 'multiplayer'
+        let startMenuMode = 'local';
         let myLocalSeatId = "p1";
 
-        // Internal networking state
         let netMsgCounter = 0;
         const netSeenPacketIds = new Map();
         let netStateStamp = { version: 0, updatedAt: 0, authorId: '' };
@@ -886,10 +904,6 @@
         let netProfilePushTimer = null;
         let netLifecycleHooked = false;
 
-        // Public STUN only. Metered's Open Relay now hands out per-account TURN credentials
-        // (the old shared "openrelayproject" login is unreliable), so it was removed.
-        // Players behind strict NATs still sync through the MQTT relay.
-        // To add your own TURN server, append { urls, username, credential } below.
         const PEER_ICE_CONFIG = {
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' },
@@ -902,12 +916,10 @@
             return Boolean(gameState.roomCode) && gameState.roomCode !== 'LOCAL';
         }
 
-        // Bots must run on exactly one device (the host), otherwise every client plays the bot's turn.
         function canRunBotsHere() {
             return !isOnlineRoom() || isRoomHost;
         }
 
-        // Use at the top of action handlers (roll, buy, end turn...): if (!canLocalUserAct()) return;
         function canLocalUserAct() {
             if (!isOnlineRoom()) return true;
             const current = getCurrentPlayer();
@@ -917,7 +929,6 @@
         }
         window.canLocalUserAct = canLocalUserAct;
 
-        // Wraps the existing checkAndTriggerBotTurn() so guests never run bot turns.
         function installMultiplayerGuards() {
             try {
                 if (typeof checkAndTriggerBotTurn === 'function' && !checkAndTriggerBotTurn.__netGuarded) {
@@ -939,7 +950,6 @@
             return `polytycoon-gh-${NET_PROTOCOL_VERSION}-host-${String(roomCode || 'LOCAL').trim().toUpperCase()}`;
         }
 
-        // ---------- Input sanitising (the public relay is open to anyone who knows the room code) ----------
         function netCleanText(value, maxLen = 24) {
             return String(value ?? '').replace(/[<>"'`\\&]/g, '').replace(/\s+/g, ' ').trim().slice(0, maxLen);
         }
@@ -965,7 +975,6 @@
             };
         }
 
-        // ---------- Per-tab persistence (sessionStorage survives refresh, not shared with other tabs) ----------
         function saveSeatIdForRoom(roomCode, seatId) {
             try {
                 if (roomCode && roomCode !== 'LOCAL' && seatId) {
@@ -987,7 +996,6 @@
             return `polytycoon_host_${String(roomCode || '').toUpperCase()}`;
         }
 
-        // The host keeps a snapshot so a page refresh resumes the room instead of losing it.
         function persistHostSnapshot() {
             if (!isRoomHost || !isOnlineRoom()) return;
             try {
@@ -1016,7 +1024,6 @@
         function updateBrowserUrlParams() {
             try {
                 const url = new URL(window.location.href);
-                // IMPORTANT: Never put ?seat= in the browser URL so copying the address bar URL never forces a friend into the Host's seat!
                 url.searchParams.delete('seat');
                 if (gameState.roomCode && gameState.roomCode !== 'LOCAL') {
                     url.searchParams.set('room', gameState.roomCode);
@@ -1025,9 +1032,7 @@
                 }
                 url.searchParams.set('map', gameState.mapId || 'malaysia');
                 window.history.replaceState({}, '', url.toString());
-            } catch (e) {
-                // Ignore in restricted sandboxed environments
-            }
+            } catch (e) {}
         }
 
         function copyTextSafe(text, onSuccessMessage) {
@@ -1057,7 +1062,6 @@
             if (callback) callback();
         }
 
-        // ---------- Packet helpers ----------
         function netNewMsgId() {
             netMsgCounter += 1;
             return `${myClientUniqueId}.${netMsgCounter.toString(36)}.${Math.random().toString(36).slice(2, 6)}`;
@@ -1090,11 +1094,10 @@
                 packet.fromHost = Boolean(isRoomHost && packet.senderClientId === myClientUniqueId);
             }
             packet.proto = NET_PROTOCOL_VERSION;
-            netMarkSeen(packet.msgId); // ignore our own echo coming back through a relay
+            netMarkSeen(packet.msgId);
             return packet;
         }
 
-        // ---------- State versioning ----------
         function compareStateStamps(a, b) {
             const av = Number(a && a.stateVersion) || 0;
             const bv = Number(b && b.stateVersion) || 0;
@@ -1105,7 +1108,7 @@
             const aa = String((a && a.stateAuthorId) || '');
             const ba = String((b && b.stateAuthorId) || '');
             if (aa === ba) return 0;
-            return aa > ba ? 1 : -1; // deterministic tie-break so every client converges on the same winner
+            return aa > ba ? 1 : -1;
         }
 
         function getLocalStateStamp() {
@@ -1123,7 +1126,6 @@
             gameState.stateVersion = netStateStamp.version;
         }
 
-        // options.bump === false re-sends the current state without creating a new version
         function getSerializedRoomPayload(options) {
             const bump = !(options && options.bump === false);
             if (bump) {
@@ -1161,14 +1163,12 @@
             if (reconnBtn) reconnBtn.classList.remove('hidden');
         }
 
-        // Returns true when the state was applied. options.force skips the version/echo checks (host resume).
         function applyIncomingRoomPayload(data, options) {
             if (!data || typeof data !== 'object') return false;
             const force = Boolean(options && options.force);
             if (!force && data.senderClientId && data.senderClientId === myClientUniqueId) return false;
             if (!force && compareStateStamps(data, getLocalStateStamp()) <= 0) return false;
 
-            // Parse first so a malformed packet can never half-apply
             let incomingProps = null;
             let incomingPlayers = null;
             let incomingLogs = null;
@@ -1215,13 +1215,11 @@
 
                 if (Array.isArray(incomingPlayers)) {
                     const cleanPlayers = incomingPlayers.map(netSanitizePlayer).filter(Boolean).slice(0, NET_MAX_SEATS);
-                    // Check if our Guest seat is already in the Host's player roster
                     if (!isRoomHost && myLocalSeatId && myLocalSeatId !== 'p1') {
                         if (cleanPlayers.some(p => p.id === myLocalSeatId)) {
                             isConfirmedInHostRoster = true;
                             pendingJoinPlayerObj = null;
                         } else if (pendingJoinPlayerObj && cleanPlayers.length < NET_MAX_SEATS) {
-                            // Keep our seat visible locally and re-announce to the Host (throttled)
                             cleanPlayers.push({ ...pendingJoinPlayerObj });
                             sendJoinRequest();
                         }
@@ -1239,7 +1237,6 @@
 
                 updateBrowserUrlParams();
 
-                // Show or hide the Pre-Game Start Menu based on room status ('setup' vs 'playing')
                 const startModal = document.getElementById('start-menu-modal');
                 if (startModal) {
                     if (gameState.status === 'setup') {
@@ -1270,12 +1267,10 @@
             return true;
         }
 
-        // ---------- Incoming packet router ----------
         function handleIncomingRoomPacket(data, sourcePeerConn = null) {
             if (!data || typeof data !== 'object') return;
             if (data.senderClientId && data.senderClientId === myClientUniqueId) return;
 
-            // Legacy WebRTC keep-alives (no msgId, never relayed)
             if (data.type === 'HEARTBEAT_PING') {
                 if (sourcePeerConn && sourcePeerConn.open) {
                     try { sourcePeerConn.send({ type: 'HEARTBEAT_PONG', t: data.t, senderClientId: myClientUniqueId }); } catch (e) {}
@@ -1315,11 +1310,10 @@
                     applyIncomingRoomPayload(data);
                     break;
                 default:
-                    if (data.playersJson) applyIncomingRoomPayload(data); // legacy untyped state packets
+                    if (data.playersJson) applyIncomingRoomPayload(data);
             }
         }
 
-        // The host bridges transports so a guest reachable only over WebRTC still hears relay-only guests, and vice versa.
         function netRelayAsHost(packet, sourcePeerConn) {
             if (packet.type === 'HOST_HEARTBEAT') return;
             peerConnections.forEach(c => {
@@ -1335,15 +1329,14 @@
 
         function handleHostHeartbeat(data) {
             if (isRoomHost) {
-                // Two tabs host the same room (e.g. a duplicated tab): the higher client id steps down.
                 if (data.senderClientId && data.senderClientId < myClientUniqueId) demoteToGuest();
                 return;
             }
             const cmp = compareStateStamps(data, getLocalStateStamp());
             if (cmp > 0) {
-                requestStateSync(); // we missed an update
+                requestStateSync();
             } else if (cmp < 0 && netStateStamp.authorId === myClientUniqueId) {
-                sendTransportPacket(getSerializedRoomPayload({ bump: false })); // the host missed our latest move
+                sendTransportPacket(getSerializedRoomPayload({ bump: false }));
             }
         }
 
@@ -1351,7 +1344,6 @@
             if (isRoomHost) {
                 netQueueStateReply(0);
             } else if (data.fromHost && netStateStamp.version > 0) {
-                // The host just refreshed and asks if anyone holds a newer state. Jitter avoids reply storms.
                 netQueueStateReply(120 + Math.random() * 400);
             }
         }
@@ -1371,7 +1363,6 @@
 
             const existing = gameState.players.find(p => p.id === incoming.id);
             if (existing) {
-                // Reconnect/rejoin: refresh the profile only. Never reset cash, position or ownership.
                 existing.uid = incoming.uid || existing.uid;
                 if (gameState.status === 'setup') {
                     existing.name = incoming.name;
@@ -1435,7 +1426,6 @@
 
         function demoteToGuest() {
             if (!isRoomHost || !isOnlineRoom()) return;
-            console.info('[net] Another tab is already hosting this room; continuing as a guest on the same seat.');
             const code = gameState.roomCode;
             isRoomHost = false;
             isConfirmedInHostRoster = true;
@@ -1446,7 +1436,6 @@
             updateP2PConnectionBadges();
         }
 
-        // ---------- Connection badges ----------
         function getNetTransportSummary() {
             const openPeers = peerConnections.filter(c => c && c.open).length;
             const brokers = mqttClients.filter(c => c && c.connected).length;
@@ -1514,7 +1503,6 @@
             }
         }
 
-        // ---------- Transport 1: MQTT over WSS (two brokers in parallel, so one outage never splits the room) ----------
         function teardownMqttRelay() {
             const old = mqttClients;
             mqttClients = [];
@@ -1526,10 +1514,7 @@
         function netPublishMqtt(packet, json) {
             if (!activeMqttTopic || !mqttClients.length) return;
             const body = json || JSON.stringify(packet);
-            if (body.length > NET_MAX_PACKET_BYTES) {
-                console.warn('[net] Packet too large for relay:', body.length, 'bytes');
-                return;
-            }
+            if (body.length > NET_MAX_PACKET_BYTES) return;
             const qos = packet.type === 'HOST_HEARTBEAT' ? 0 : 1;
             mqttClients.forEach(c => {
                 if (c && c.connected) {
@@ -1540,10 +1525,7 @@
 
         function initMqttRoomRelay(cleanCode) {
             teardownMqttRelay();
-            if (typeof mqtt === 'undefined') {
-                console.warn('[net] MQTT library not loaded; relay disabled.');
-                return;
-            }
+            if (typeof mqtt === 'undefined') return;
             const topic = `polytycoon/${NET_PROTOCOL_VERSION}/room/${cleanCode}`;
             activeMqttTopic = topic;
 
@@ -1556,12 +1538,9 @@
                         connectTimeout: 8000,
                         reconnectPeriod: 3000,
                         keepalive: 30,
-                        resubscribe: false // we subscribe ourselves on every (re)connect
+                        resubscribe: false
                     });
-                } catch (e) {
-                    console.warn(`[net] MQTT connect failed (${url})`, e);
-                    return;
-                }
+                } catch (e) { return; }
                 mqttClients.push(client);
                 if (!mqttClient) mqttClient = client;
                 const isCurrent = () => mqttClients.includes(client) && activeMqttTopic === topic;
@@ -1587,11 +1566,10 @@
                 });
                 client.on('close', () => { if (isCurrent()) updateP2PConnectionBadges(); });
                 client.on('offline', () => { if (isCurrent()) updateP2PConnectionBadges(); });
-                client.on('error', (err) => console.warn(`[net] MQTT ${url}:`, (err && err.message) || err));
+                client.on('error', () => {});
             });
         }
 
-        // ---------- Transport 3: BroadcastChannel (same browser, multiple tabs) ----------
         function netPostBroadcast(packet) {
             if (!localBroadcastChannel) return;
             try { localBroadcastChannel.postMessage(packet); } catch (e) {}
@@ -1613,13 +1591,12 @@
             } catch (e) {}
         }
 
-        // Called whenever a transport comes up: the host announces state, guests (re)announce themselves.
         function onTransportReady(sendOne) {
             if (!isOnlineRoom()) return;
             if (isRoomHost) {
                 sendOne(getSerializedRoomPayload({ bump: false }));
                 if (Date.now() < netHostCatchUpUntil) {
-                    sendOne({ type: 'REQUEST_STATE_SYNC' }); // after a refresh: does any guest have a newer state?
+                    sendOne({ type: 'REQUEST_STATE_SYNC' });
                 }
             } else {
                 if (pendingJoinPlayerObj) {
@@ -1630,7 +1607,6 @@
             updateP2PConnectionBadges();
         }
 
-        // Unified heartbeat: host liveness + version beacon (lets guests self-heal missed packets) + badge refresh.
         function startPeerHeartbeat() {
             if (peerHeartbeatInterval) clearInterval(peerHeartbeatInterval);
             peerHeartbeatInterval = setInterval(() => {
@@ -1681,12 +1657,11 @@
                 } else if (netStateStamp.version === 0) {
                     requestStateSync();
                 }
-                connectGuestToHostPeer(hostPeerId); // no-op while connected or still negotiating
+                connectGuestToHostPeer(hostPeerId);
             }, NET_JOIN_RETRY_MS);
             joinRetryInterval = handle;
         }
 
-        // ---------- Transport 2: PeerJS WebRTC ----------
         function destroyPeerInstance() {
             if (netPeerRestartTimer) {
                 clearTimeout(netPeerRestartTimer);
@@ -1713,10 +1688,7 @@
         }
 
         function startPeerTransport(cleanCode, attempt = 0) {
-            if (typeof Peer === 'undefined') {
-                console.warn('[net] PeerJS not loaded; using the MQTT relay only.');
-                return;
-            }
+            if (typeof Peer === 'undefined') return;
             destroyPeerInstance();
 
             const asHost = isRoomHost;
@@ -1726,7 +1698,6 @@
             try {
                 peer = asHost ? new Peer(hostPeerId, options) : new Peer(options);
             } catch (e) {
-                console.warn('[net] PeerJS init failed', e);
                 schedulePeerRestart(cleanCode, attempt);
                 return;
             }
@@ -1751,7 +1722,6 @@
             peer.on('disconnected', () => {
                 if (!isCurrent()) return;
                 updateP2PConnectionBadges();
-                // Lost the signaling server only; existing data channels keep working.
                 setTimeout(() => {
                     if (isCurrent() && !peer.destroyed && peer.disconnected) {
                         try { peer.reconnect(); } catch (e) {}
@@ -1762,12 +1732,8 @@
             peer.on('error', (err) => {
                 if (!isCurrent()) return;
                 const type = err && err.type;
-                if (type === 'peer-unavailable') {
-                    // Host not reachable over WebRTC yet; the relay keeps us in sync and the retry loop tries again.
-                    return;
-                }
+                if (type === 'peer-unavailable') return;
                 if (type === 'unavailable-id' && asHost) {
-                    // Our host ID is still reserved (e.g. right after a refresh). Stay host via the relay, retry the ID.
                     schedulePeerRestart(cleanCode, attempt);
                     return;
                 }
@@ -1776,7 +1742,6 @@
                     schedulePeerRestart(cleanCode, attempt);
                 }
                 updateP2PConnectionBadges();
-                console.warn('[net] PeerJS:', type || err);
             });
         }
 
@@ -1802,7 +1767,7 @@
             if (isRoomHost || !peerInstance || peerInstance.destroyed || !peerInstance.open) return;
             const current = netGuestHostConn;
             if (current && current.open) return;
-            if (!force && Date.now() - netGuestHostConnStartedAt < NET_PEER_CONNECT_WINDOW_MS) return; // still negotiating
+            if (!force && Date.now() - netGuestHostConnStartedAt < NET_PEER_CONNECT_WINDOW_MS) return;
             if (current) {
                 try { current.close(); } catch (e) {}
                 peerConnections = peerConnections.filter(c => c !== current);
@@ -1810,9 +1775,7 @@
             let conn;
             try {
                 conn = peerInstance.connect(hostPeerId, { reliable: true, serialization: 'json' });
-            } catch (e) {
-                return;
-            }
+            } catch (e) { return; }
             if (!conn) return;
             netGuestHostConn = conn;
             netGuestHostConnStartedAt = Date.now();
@@ -1821,18 +1784,14 @@
 
         function setupPeerConnection(conn) {
             if (!conn) return;
-            if (!peerConnections.includes(conn)) {
-                peerConnections.push(conn);
-            }
+            if (!peerConnections.includes(conn)) peerConnections.push(conn);
             conn.on('open', () => {
                 updateP2PConnectionBadges();
                 onTransportReady((pkt) => {
                     try { conn.send(stampPacket(pkt)); } catch (e) {}
                 });
             });
-            conn.on('data', (data) => {
-                handleIncomingRoomPacket(data, conn);
-            });
+            conn.on('data', (data) => handleIncomingRoomPacket(data, conn));
             const drop = () => {
                 peerConnections = peerConnections.filter(c => c !== conn);
                 if (netGuestHostConn === conn) netGuestHostConn = null;
@@ -1856,14 +1815,12 @@
         }
         window.leaveMultiplayerTransports = teardownAllTransports;
 
-        // Refresh, background tabs (mobile) and network changes
         function hookNetworkLifecycleOnce() {
             if (netLifecycleHooked) return;
             netLifecycleHooked = true;
 
             window.addEventListener('pagehide', () => {
                 persistHostSnapshot();
-                // Release the deterministic host ID right away so a refresh can reclaim it
                 try { if (peerInstance) peerInstance.destroy(); } catch (e) {}
             });
 
@@ -1873,7 +1830,6 @@
 
             document.addEventListener('visibilitychange', () => {
                 if (document.visibilityState !== 'visible' || !isOnlineRoom()) return;
-                // Mobile browsers freeze sockets in the background, so resync as soon as we're visible again
                 if (peerInstance && !peerInstance.destroyed && peerInstance.disconnected) {
                     try { peerInstance.reconnect(); } catch (e) {}
                 }
@@ -1904,25 +1860,19 @@
             initPeerRoom(gameState.roomCode, isRoomHost);
         };
 
-        // ---------- Outgoing ----------
         function sendTransportPacket(packet) {
             if (!packet || typeof packet !== 'object') return;
             stampPacket(packet);
             const json = JSON.stringify(packet);
-
-            // 1. PeerJS WebRTC DataChannels
             peerConnections.forEach(conn => {
                 if (conn && conn.open) {
                     try { conn.send(packet); } catch (e) {}
                 }
             });
-            // 2. MQTT over Secure WebSockets (WSS)
             netPublishMqtt(packet, json);
-            // 3. Local BroadcastChannel (multi-tab testing on the same device)
             netPostBroadcast(packet);
         }
 
-        // State broadcasts are coalesced: a burst of updates (animations, chained actions) goes out as one packet.
         function broadcastToPeers(payload) {
             if (!payload) return;
             if (payload.type !== 'ROOM_STATE_SYNC') {
@@ -1943,20 +1893,12 @@
 
         async function syncStateToCloud() {
             if (isApplyingRemoteUpdate) return;
-            if (isOnlineRoom()) {
-                broadcastToPeers(getSerializedRoomPayload());
-            }
+            if (isOnlineRoom()) broadcastToPeers(getSerializedRoomPayload());
             renderAllUI();
-            if (gameState.status === 'setup') {
-                renderStartMenuUI();
-            }
+            if (gameState.status === 'setup') renderStartMenuUI();
         }
 
-        function subscribeToCloudRoom(code) {
-            // Optional cloud hook stub for Firebase environments
-            return code;
-        }
-
+        function subscribeToCloudRoom(code) { return code; }
         async function initFirebaseConnection() {
             const idEl = document.getElementById('user-id-display');
             if (idEl) idEl.textContent = `ID: ${myClientUniqueId}`;
@@ -1971,9 +1913,7 @@
                 }
                 url.searchParams.set('map', gameState.mapId || 'malaysia');
                 return url.toString();
-            } catch (e) {
-                return window.location.href;
-            }
+            } catch (e) { return window.location.href; }
         }
 
         function copyInviteLink() {
@@ -1984,7 +1924,7 @@
         }
 
         function generateRoomCode(length = 4) {
-            const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // 32 chars, so a byte modulo stays unbiased
+            const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
             const bytes = new Uint8Array(length);
             if (window.crypto && window.crypto.getRandomValues) {
                 window.crypto.getRandomValues(bytes);
@@ -1994,7 +1934,6 @@
             return Array.from(bytes, b => chars[b % chars.length]).join('');
         }
 
-        // Host refreshed the page: restore the room from this tab's snapshot and keep hosting.
         function resumeHostedRoom(code, snapshot) {
             gameState.roomCode = code;
             activeRoomId = code;
@@ -2052,18 +1991,7 @@
 
             initPeerRoom(code, true);
             persistHostSnapshot();
-
-            if (db && currentUser) {
-                try {
-                    await syncStateToCloud();
-                    subscribeToCloudRoom(code);
-                } catch (e) {
-                    console.warn('[net] Firebase sync failed; continuing with P2P + relay.', e);
-                }
-            } else {
-                showBannerToast(`🌐 Room ${code} created! Share link or code with friends.`);
-            }
-
+            showBannerToast(`🌐 Room ${code} created! Share link or code with friends.`);
             renderStartMenuUI();
             renderAllUI();
         };
@@ -2077,7 +2005,6 @@
                 return;
             }
 
-            // This tab created the room before a refresh, so resume hosting instead of joining as a guest
             const hostSnapshot = loadHostSnapshot(code);
             if (hostSnapshot) {
                 resumeHostedRoom(code, hostSnapshot);
@@ -2091,12 +2018,11 @@
             startMenuMode = 'multiplayer';
             netLastHostSeenAt = 0;
             netHostCatchUpUntil = 0;
-            resetNetStateStamp(false); // accept the host's state whatever its version
+            resetNetStateStamp(false);
 
             const headerCode = document.getElementById('header-room-code');
             if (headerCode) headerCode.textContent = code;
 
-            // Reuse this tab's guest seat for this room (refresh = rejoin same seat), or create a new one
             const savedSeat = loadSeatIdForRoom(code);
             if (savedSeat && savedSeat !== "p1") {
                 myLocalSeatId = savedSeat;
@@ -2130,43 +2056,16 @@
                 bankrupt: false
             };
 
-            // Start from a clean roster (only our seat) until the host's state arrives, so local/bot seats never leak in.
-            // getMyLobbyPlayer() still finds our seat, so the name never resets to TycoonAlex.
             gameState.players = [guestPlayerObj];
             gameState.turnIndex = 0;
             pendingJoinPlayerObj = { ...guestPlayerObj };
 
             initPeerRoom(code, false);
-
-            if (db && currentUser) {
-                try {
-                    const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'monopoly_rooms', code);
-                    const snap = await getDoc(roomRef);
-                    if (snap.exists()) {
-                        applyIncomingRoomPayload(snap.data());
-                        if (!gameState.players.some(p => p.id === myLocalSeatId) && gameState.players.length < NET_MAX_SEATS) {
-                            gameState.players.push(guestPlayerObj);
-                            addGameLog(`🌐 ${guestPlayerObj.name} joined Lobby ${code}!`, "system");
-                            await syncStateToCloud();
-                        }
-                    }
-                    // If the doc doesn't exist yet, don't write one as a guest: the JOIN_REQUEST flow handles it.
-                    subscribeToCloudRoom(code);
-                    showBannerToast(`🎉 Joined Multiplayer Lobby ${code}! Customize your name & token.`);
-                } catch (e) {
-                    showBannerToast(`🔗 Connecting to Lobby ${code}...`);
-                }
-            } else {
-                showBannerToast(`🔗 Joining Lobby ${code} as ${guestPlayerObj.name}...`);
-            }
-
+            showBannerToast(`🔗 Joining Lobby ${code} as ${guestPlayerObj.name}...`);
             renderStartMenuUI();
             renderAllUI();
         };
 
-        // =====================================================================
-        // LOBBY & PROFILE MANAGEMENT
-        // =====================================================================
         let hasMatchStartedOnce = false;
 
         function getMyLobbyPlayer() {
@@ -2175,7 +2074,6 @@
                 return pendingJoinPlayerObj;
             }
             if (!me) {
-                // Only fall back to p1 in Local mode or if we are the Host
                 if (isRoomHost || !gameState.roomCode || gameState.roomCode === 'LOCAL') {
                     me = gameState.players.find(p => !p.isBot) || gameState.players[0];
                     if (me) myLocalSeatId = me.id;
@@ -2205,8 +2103,6 @@
             renderAllUI();
         };
 
-        // Profile changes: guests send a small PLAYER_PROFILE_UPDATE, the host re-syncs the room.
-        // Name typing is debounced so every keystroke doesn't hit the network.
         function pushMyProfileUpdate(me, debounce) {
             const flush = () => {
                 netProfilePushTimer = null;
@@ -2238,7 +2134,6 @@
             if (field === 'name') {
                 me.name = netCleanText(value) || 'Tycoon';
                 const lobbyName = document.getElementById('lobby-player-name');
-                // Don't overwrite the input while the user is typing in it (would eat spaces / move the caret)
                 if (lobbyName && document.activeElement !== lobbyName) lobbyName.value = me.name;
             } else if (field === 'token') {
                 me.token = netCleanToken(value, me.token);
@@ -2310,10 +2205,7 @@
         }
 
         function updateHouseRule(key, val) {
-            if (isOnlineRoom() && !isRoomHost) {
-                showBannerToast("Only the Host can change house rules!");
-                return;
-            }
+            if (isOnlineRoom() && !isRoomHost) return;
             gameState.rules[key] = val;
             if (key === 'startingCash' && gameState.status === 'setup') {
                 gameState.players.forEach(p => { p.cash = Number(val) || 1500; });
@@ -2326,9 +2218,7 @@
                 showBannerToast("Waiting for the Room Host to start the match!");
                 return;
             }
-            if (gameState.players.length < 2) {
-                addLobbySeat(true);
-            }
+            if (gameState.players.length < 2) addLobbySeat(true);
             gameState.status = 'playing';
             gameState.turnIndex = 0;
             gameState.turnPhase = 'ROLL';
@@ -2337,11 +2227,7 @@
             gameState.properties = {};
             const startCash = Number(gameState.rules.startingCash) || 1500;
             gameState.players.forEach(p => {
-                p.cash = startCash;
-                p.position = 0;
-                p.inJail = false;
-                p.jailTurns = 0;
-                p.bankrupt = false;
+                p.cash = startCash; p.position = 0; p.inJail = false; p.jailTurns = 0; p.bankrupt = false;
             });
             hasMatchStartedOnce = true;
             closeStartMenuModal();
@@ -2353,40 +2239,24 @@
 
         function openStartMenuModal() {
             const modal = document.getElementById('start-menu-modal');
-            if (modal) {
-                modal.classList.remove('hidden');
-                modal.classList.add('flex');
-                renderStartMenuUI();
-            }
+            if (modal) { modal.classList.remove('hidden'); modal.classList.add('flex'); renderStartMenuUI(); }
         }
-
         function closeStartMenuModal() {
             const modal = document.getElementById('start-menu-modal');
-            if (modal) {
-                modal.classList.add('hidden');
-                modal.classList.remove('flex');
-            }
+            if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
         }
-
         function openShareModal() {
             const modal = document.getElementById('share-room-modal');
             const codeEl = document.getElementById('share-modal-room-code');
             const urlEl = document.getElementById('share-url-input');
             if (codeEl) codeEl.textContent = gameState.roomCode || 'LOCAL';
             if (urlEl) urlEl.value = getShareableInviteUrl();
-            if (modal) {
-                modal.classList.remove('hidden');
-                modal.classList.add('flex');
-            }
+            if (modal) { modal.classList.remove('hidden'); modal.classList.add('flex'); }
             updateP2PConnectionBadges();
         }
-
         function closeShareModal() {
             const modal = document.getElementById('share-room-modal');
-            if (modal) {
-                modal.classList.add('hidden');
-                modal.classList.remove('flex');
-            }
+            if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
         }
 
         function renderStartMenuUI() {
@@ -2399,15 +2269,11 @@
                 tabLocal.className = `py-2 px-3 rounded-xl font-bold text-xs sm:text-sm transition flex items-center justify-center gap-2 ${!isMP ? 'bg-emerald-600 text-white' : 'text-slate-300 hover:text-white'}`;
                 tabMulti.className = `py-2 px-3 rounded-xl font-bold text-xs sm:text-sm transition flex items-center justify-center gap-2 ${isMP ? 'bg-indigo-600 text-white' : 'text-slate-300 hover:text-white'}`;
             }
-            if (mpBox) {
-                mpBox.classList.toggle('hidden', !isMP);
-            }
+            if (mpBox) mpBox.classList.toggle('hidden', !isMP);
 
             const me = getMyLobbyPlayer();
             const nameInput = document.getElementById('start-my-name-input');
-            if (nameInput && me && document.activeElement !== nameInput) {
-                nameInput.value = me.name;
-            }
+            if (nameInput && me && document.activeElement !== nameInput) nameInput.value = me.name;
 
             const readyBtn = document.getElementById('btn-my-ready-toggle');
             if (readyBtn && me) {
@@ -2417,7 +2283,6 @@
                     : 'px-3 py-1 rounded-lg text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40';
             }
 
-            // Token picker
             const tokenPicker = document.getElementById('my-token-picker');
             if (tokenPicker && me) {
                 tokenPicker.innerHTML = Object.entries(TOKEN_ICONS).map(([key, icon]) => `
@@ -2427,7 +2292,6 @@
                 `).join('');
             }
 
-            // Color picker
             const colorPicker = document.getElementById('my-color-picker');
             if (colorPicker && me) {
                 colorPicker.innerHTML = PLAYER_COLORS.map(col => `
@@ -2435,7 +2299,6 @@
                 `).join('');
             }
 
-            // Seats list
             const seatsList = document.getElementById('start-lobby-seats-list');
             if (seatsList) {
                 seatsList.innerHTML = gameState.players.map((p, i) => `
@@ -2444,21 +2307,17 @@
                             <span style="background:${p.color}" class="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs">
                                 <i class="fa-solid ${TOKEN_ICONS[p.token] || 'fa-hat-cowboy'}"></i>
                             </span>
-                            <div>
-                                <div class="text-xs font-bold text-white flex items-center gap-1.5">
-                                    <span>${p.name}</span>
-                                    ${p.id === myLocalSeatId ? '<span class="text-[10px] px-1.5 py-0.2 rounded bg-sky-500/20 text-sky-300">YOU</span>' : ''}
-                                    ${i === 0 && isOnlineRoom() ? '<span class="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300">HOST</span>' : ''}
-                                    ${p.isBot ? '<span class="text-[10px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300">AI BOT</span>' : ''}
-                                </div>
+                            <div class="text-xs font-bold text-white flex items-center gap-1.5">
+                                <span>${p.name}</span>
+                                ${p.id === myLocalSeatId ? '<span class="text-[10px] px-1.5 py-0.2 rounded bg-sky-500/20 text-sky-300">YOU</span>' : ''}
+                                ${i === 0 && isOnlineRoom() ? '<span class="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300">HOST</span>' : ''}
+                                ${p.isBot ? '<span class="text-[10px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300">AI BOT</span>' : ''}
                             </div>
                         </div>
                         <div class="flex items-center gap-2">
                             <span class="text-[10px] font-bold ${p.ready ? 'text-emerald-400' : 'text-amber-400'}">${p.ready ? 'Ready' : 'Waiting'}</span>
                             ${(!isOnlineRoom() || isRoomHost) && gameState.players.length > 2 ? `
-                                <button onclick="removeLobbySeat('${p.id}')" class="text-slate-500 hover:text-rose-400 text-xs px-1">
-                                    <i class="fa-solid fa-trash"></i>
-                                </button>
+                                <button onclick="removeLobbySeat('${p.id}')" class="text-slate-500 hover:text-rose-400 text-xs px-1"><i class="fa-solid fa-trash"></i></button>
                             ` : ''}
                         </div>
                     </div>
@@ -2483,24 +2342,35 @@
         }
 
         // =====================================================================
-        // BOARD GEOMETRY & 2D DOM GENERATION
+        // 2D BOARD DOM & 3X3 PIP DICE RENDERING
         // =====================================================================
+        const PIP_LAYOUTS = {
+            1: [4],
+            2: [0, 8],
+            3: [0, 4, 8],
+            4: [0, 2, 6, 8],
+            5: [0, 2, 4, 6, 8],
+            6: [0, 2, 3, 5, 6, 8]
+        };
+
+        function renderPipDieElement(el, value) {
+            if (!el) return;
+            const v = Math.max(1, Math.min(6, Number(value) || 1));
+            el.setAttribute('data-val', String(v));
+            if (el.children.length !== 9) {
+                el.innerHTML = Array(9).fill('<span class="pip-dot"></span>').join('');
+            }
+            const activeIdxs = PIP_LAYOUTS[v] || [4];
+            Array.from(el.children).forEach((dot, idx) => {
+                dot.classList.toggle('active', activeIdxs.includes(idx));
+            });
+        }
+
         function getGridPositionForTile(index) {
-            // 11x11 CSS Grid (1-indexed: rows 1..11, cols 1..11)
-            // Bottom row: 0 (bottom-right, 11,11) -> 10 (bottom-left, 11,1)
-            if (index >= 0 && index <= 10) {
-                return { row: 11, col: 11 - index };
-            }
-            // Left column: 10 (11,1) -> 20 (1,1)
-            if (index > 10 && index <= 20) {
-                return { row: 11 - (index - 10), col: 1 };
-            }
-            // Top row: 20 (1,1) -> 30 (1,11)
-            if (index > 20 && index <= 30) {
-                return { row: 1, col: 1 + (index - 20) };
-            }
-            // Right column: 30 (1,11) -> 39 (10,11)
-            return { row: 1 + (index - 30), col: 11 };
+            if (index >= 0 && index <= 10) return { row: 11, col: 11 - index, side: 'side-bottom' };
+            if (index > 10 && index <= 20) return { row: 11 - (index - 10), col: 1, side: 'side-left' };
+            if (index > 20 && index <= 30) return { row: 1, col: 1 + (index - 20), side: 'side-top' };
+            return { row: 1 + (index - 30), col: 11, side: 'side-right' };
         }
 
         function applyMapThemeArrays(mapId) {
@@ -2544,7 +2414,7 @@
                 const cell = document.createElement('div');
                 const isCorner = idx % 10 === 0;
                 cell.id = `tile-2d-${idx}`;
-                cell.className = `board-tile ${isCorner ? 'corner-tile' : ''} ${selectedTileId === idx ? 'selected-tile' : ''}`;
+                cell.className = `board-tile ${isCorner ? 'corner-tile' : pos.side} ${selectedTileId === idx ? 'selected-tile' : ''}`;
                 cell.style.gridRow = pos.row;
                 cell.style.gridColumn = pos.col;
                 cell.onclick = () => selectTileInspector(idx);
@@ -2558,12 +2428,15 @@
                 else if (tile.type === 'chest') iconHtml = '<i class="fa-solid fa-box-open text-sky-400 text-xs"></i>';
                 else if (tile.type === 'railroad') iconHtml = '<i class="fa-solid fa-train-subway text-slate-300 text-xs"></i>';
                 else if (tile.type === 'utility') iconHtml = '<i class="fa-solid fa-bolt text-yellow-400 text-xs"></i>';
-                else if (tile.type === 'tax') iconHtml = '<i class="fa-solid fa-Scale-balanced text-rose-400 text-xs"></i>';
+                else if (tile.type === 'tax') iconHtml = '<i class="fa-solid fa-scale-balanced text-rose-400 text-xs"></i>';
 
                 cell.innerHTML = `
-                    ${tile.type === 'property' ? `<div id="tile-houses-${idx}" class="tile-color-bar" style="background:${tile.color}"></div>` : `<div class="pt-1">${iconHtml}</div>`}
-                    <div class="tile-name">${tile.name}</div>
-                    ${tile.price > 0 ? `<div class="tile-price">$${tile.price}</div>` : `<div class="tile-price">&nbsp;</div>`}
+                    ${tile.type === 'property' ? `<div id="tile-houses-${idx}" class="tile-color-bar" style="background:${tile.color}"></div>` : ''}
+                    <div class="tile-body">
+                        ${tile.type !== 'property' ? `<div class="pt-0.5">${iconHtml}</div>` : ''}
+                        <div class="tile-name">${tile.name}</div>
+                        ${tile.price > 0 ? `<div class="tile-price">$${tile.price}</div>` : `<div class="tile-price">&nbsp;</div>`}
+                    </div>
                     <div id="tile-tokens-${idx}" class="tile-tokens-wrap"></div>
                     <div id="tile-owner-${idx}" class="tile-owner-strip"></div>
                 `;
@@ -2593,19 +2466,13 @@
         // =====================================================================
         // 3D BOARD ENGINE (THREE.JS)
         // =====================================================================
-        let threeScene = null;
-        let threeCamera = null;
-        let threeRenderer = null;
-        let threeTileMeshes = [];
-        let threeTokenMeshes = {};
-        let threeHouseGroup = null;
+        let threeScene = null, threeCamera = null, threeRenderer = null;
+        let threeTileMeshes = [], threeTokenMeshes = {}, threeHouseGroup = null;
         let cameraOrbit = { theta: Math.PI / 4, phi: 0.88, radius: 18, isDragging: false, lastX: 0, lastY: 0 };
 
         function get3DCoordsForTile(index) {
             const pos = getGridPositionForTile(index);
-            const x = (pos.col - 6) * 1.25;
-            const z = (pos.row - 6) * 1.25;
-            return { x, z };
+            return { x: (pos.col - 6) * 1.25, z: (pos.row - 6) * 1.25 };
         }
 
         function initThreeSceneIfNeeded() {
@@ -2625,9 +2492,7 @@
             container.innerHTML = '';
             container.appendChild(threeRenderer.domElement);
 
-            const ambient = new THREE.AmbientLight(0xffffff, 0.78);
-            threeScene.add(ambient);
-
+            threeScene.add(new THREE.AmbientLight(0xffffff, 0.78));
             const dirLight = new THREE.DirectionalLight(0xffffff, 0.75);
             dirLight.position.set(12, 22, 14);
             threeScene.add(dirLight);
@@ -2635,21 +2500,15 @@
             threeHouseGroup = new THREE.Group();
             threeScene.add(threeHouseGroup);
 
-            // Pointer Orbit Controls
             const dom = threeRenderer.domElement;
             dom.addEventListener('pointerdown', (e) => {
-                cameraOrbit.isDragging = true;
-                cameraOrbit.lastX = e.clientX;
-                cameraOrbit.lastY = e.clientY;
+                cameraOrbit.isDragging = true; cameraOrbit.lastX = e.clientX; cameraOrbit.lastY = e.clientY;
             });
             window.addEventListener('pointermove', (e) => {
                 if (!cameraOrbit.isDragging) return;
-                const dx = e.clientX - cameraOrbit.lastX;
-                const dy = e.clientY - cameraOrbit.lastY;
-                cameraOrbit.lastX = e.clientX;
-                cameraOrbit.lastY = e.clientY;
-                cameraOrbit.theta -= dx * 0.008;
-                cameraOrbit.phi = Math.max(0.35, Math.min(1.35, cameraOrbit.phi - dy * 0.006));
+                cameraOrbit.theta -= (e.clientX - cameraOrbit.lastX) * 0.008;
+                cameraOrbit.phi = Math.max(0.35, Math.min(1.35, cameraOrbit.phi - (e.clientY - cameraOrbit.lastY) * 0.006));
+                cameraOrbit.lastX = e.clientX; cameraOrbit.lastY = e.clientY;
                 updateThreeCameraPosition();
             });
             window.addEventListener('pointerup', () => { cameraOrbit.isDragging = false; });
@@ -2675,23 +2534,20 @@
             threeTileMeshes.forEach(m => threeScene.remove(m));
             threeTileMeshes = [];
 
-            // Center Board Table
-            const baseGeo = new THREE.BoxGeometry(14.2, 0.35, 14.2);
-            const baseMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.7 });
-            const baseMesh = new THREE.Mesh(baseGeo, baseMat);
+            const baseMesh = new THREE.Mesh(
+                new THREE.BoxGeometry(14.2, 0.35, 14.2),
+                new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.7 })
+            );
             baseMesh.position.y = -0.2;
             threeScene.add(baseMesh);
             threeTileMeshes.push(baseMesh);
 
             BOARD_TILES.forEach((tile, idx) => {
                 const { x, z } = get3DCoordsForTile(idx);
-                const geo = new THREE.BoxGeometry(1.16, 0.18, 1.16);
-                const mat = new THREE.MeshStandardMaterial({
-                    color: new THREE.Color(tile.color || '#334155'),
-                    roughness: 0.45,
-                    metalness: 0.15
-                });
-                const mesh = new THREE.Mesh(geo, mat);
+                const mesh = new THREE.Mesh(
+                    new THREE.BoxGeometry(1.16, 0.18, 1.16),
+                    new THREE.MeshStandardMaterial({ color: new THREE.Color(tile.color || '#334155'), roughness: 0.45, metalness: 0.15 })
+                );
                 mesh.position.set(x, 0, z);
                 threeScene.add(mesh);
                 threeTileMeshes.push(mesh);
@@ -2701,8 +2557,6 @@
 
         function sync3DTokensAndHouses() {
             if (!threeScene) return;
-
-            // Remove stale tokens
             const activeIds = new Set(gameState.players.filter(p => !p.bankrupt).map(p => p.id));
             Object.keys(threeTokenMeshes).forEach(id => {
                 if (!activeIds.has(id)) {
@@ -2711,14 +2565,14 @@
                 }
             });
 
-            // Create / position tokens
             gameState.players.forEach((p, i) => {
                 if (p.bankrupt) return;
                 let mesh = threeTokenMeshes[p.id];
                 if (!mesh) {
-                    const geo = new THREE.ConeGeometry(0.24, 0.65, 20);
-                    const mat = new THREE.MeshStandardMaterial({ color: new THREE.Color(p.color), roughness: 0.25, metalness: 0.3 });
-                    mesh = new THREE.Mesh(geo, mat);
+                    mesh = new THREE.Mesh(
+                        new THREE.ConeGeometry(0.24, 0.65, 20),
+                        new THREE.MeshStandardMaterial({ color: new THREE.Color(p.color), roughness: 0.25, metalness: 0.3 })
+                    );
                     threeScene.add(mesh);
                     threeTokenMeshes[p.id] = mesh;
                 } else {
@@ -2728,23 +2582,19 @@
                 const angle = (i / Math.max(1, gameState.players.length)) * Math.PI * 2;
                 mesh.targetX = x + Math.cos(angle) * 0.22;
                 mesh.targetZ = z + Math.sin(angle) * 0.22;
-                if (mesh.position.y === 0) {
-                    mesh.position.set(mesh.targetX, 0.42, mesh.targetZ);
-                }
+                if (mesh.position.y === 0) mesh.position.set(mesh.targetX, 0.42, mesh.targetZ);
             });
 
-            // Rebuild houses
             if (threeHouseGroup) {
-                while (threeHouseGroup.children.length) {
-                    threeHouseGroup.remove(threeHouseGroup.children[0]);
-                }
+                while (threeHouseGroup.children.length) threeHouseGroup.remove(threeHouseGroup.children[0]);
                 Object.entries(gameState.properties).forEach(([tileIdx, prop]) => {
                     if (!prop || !prop.houses) return;
                     const { x, z } = get3DCoordsForTile(Number(tileIdx));
                     for (let h = 0; h < prop.houses; h++) {
-                        const hGeo = new THREE.BoxGeometry(0.18, 0.22, 0.18);
-                        const hMat = new THREE.MeshStandardMaterial({ color: prop.houses === 5 ? 0xf43f5e : 0x10b981 });
-                        const hMesh = new THREE.Mesh(hGeo, hMat);
+                        const hMesh = new THREE.Mesh(
+                            new THREE.BoxGeometry(0.18, 0.22, 0.18),
+                            new THREE.MeshStandardMaterial({ color: prop.houses === 5 ? 0xf43f5e : 0x10b981 })
+                        );
                         hMesh.position.set(x - 0.3 + h * 0.15, 0.22, z - 0.35);
                         threeHouseGroup.add(hMesh);
                     }
@@ -2757,8 +2607,8 @@
             if (boardViewMode === '3d' && threeRenderer && threeScene && threeCamera) {
                 Object.values(threeTokenMeshes).forEach(mesh => {
                     if (typeof mesh.targetX === 'number') {
-                        mesh.position.x += (mesh.targetX - mesh.position.x) * 0.15;
-                        mesh.position.z += (mesh.targetZ - mesh.position.z) * 0.15;
+                        mesh.position.x += (mesh.targetX - mesh.position.x) * 0.18;
+                        mesh.position.z += (mesh.targetZ - mesh.position.z) * 0.18;
                     }
                 });
                 threeRenderer.render(threeScene, threeCamera);
@@ -2774,16 +2624,14 @@
 
             if (boardViewMode === '3d') {
                 w2d?.classList.add('hidden');
-                w3d?.classList.remove('hidden');
-                w3d?.classList.add('flex');
+                w3d?.classList.remove('hidden'); w3d?.classList.add('flex');
                 if (b3d) b3d.className = 'px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-600 text-white transition';
                 if (b2d) b2d.className = 'px-2.5 py-1 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition';
                 initThreeSceneIfNeeded();
                 updateBoardDimensions();
                 sync3DTokensAndHouses();
             } else {
-                w3d?.classList.add('hidden');
-                w3d?.classList.remove('flex');
+                w3d?.classList.add('hidden'); w3d?.classList.remove('flex');
                 w2d?.classList.remove('hidden');
                 if (b2d) b2d.className = 'px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-600 text-white transition';
                 if (b3d) b3d.className = 'px-2.5 py-1 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition';
@@ -2792,7 +2640,7 @@
         }
 
         // =====================================================================
-        // GAMEPLAY LOGIC (ROLL, MOVE, RENT, BUY, BUILD, CARDS, BOT AI)
+        // STEP-BY-STEP HOPPING & GAMEPLAY LOGIC
         // =====================================================================
         function calculateRent(tile, propState, diceSum) {
             if (!tile || !propState || propState.mortgaged) return 0;
@@ -2811,7 +2659,30 @@
             return 0;
         }
 
-        function handleRollDice() {
+        async function animatePlayerSteps(player, steps) {
+            isAnimatingMove = true;
+            for (let s = 0; s < steps; s++) {
+                const prev = player.position || 0;
+                const next = (prev + 1) % BOARD_TILES.length;
+                player.position = next;
+                selectedTileId = next;
+                if (next === 0) {
+                    const salary = (s === steps - 1 && gameState.rules.doubleOnGo) ? 400 : 200;
+                    player.cash += salary;
+                    addGameLog(`💵 ${player.name} passed GO and collected $${salary}!`, 'cash');
+                    showFloatingEmotePopup({ emoji: `+$${salary}`, sender: player.name, color: '#10b981' });
+                }
+                playSoundEffect('step');
+                renderAllUI();
+                const tokEl = document.querySelector(`#tile-tokens-${next} .active-turn-token`);
+                if (tokEl) tokEl.classList.add('token-hopping');
+                await new Promise(r => setTimeout(r, 115));
+            }
+            isAnimatingMove = false;
+        }
+
+        async function handleRollDice() {
+            if (isAnimatingMove) return;
             if (!canLocalUserAct()) {
                 showBannerToast("Wait for your turn!");
                 return;
@@ -2830,10 +2701,11 @@
             const box = document.getElementById('dice-visual-box');
             if (box) {
                 box.classList.add('dice-rolling');
-                setTimeout(() => box.classList.remove('dice-rolling'), 420);
+                await new Promise(r => setTimeout(r, 380));
+                box.classList.remove('dice-rolling');
             }
+            renderAllUI();
 
-            // Jail handling
             if (player.inJail) {
                 if (isDoubles) {
                     player.inJail = false;
@@ -2855,20 +2727,10 @@
                 }
             }
 
-            // Move player
-            const oldPos = player.position || 0;
-            const newPos = (oldPos + total) % BOARD_TILES.length;
-            if (oldPos + total >= BOARD_TILES.length) {
-                const bonus = (newPos === 0 && gameState.rules.doubleOnGo) ? 400 : 200;
-                player.cash += bonus;
-                addGameLog(`💵 ${player.name} passed GO and collected $${bonus}!`, 'cash');
-            }
+            await animatePlayerSteps(player, total);
 
-            player.position = newPos;
-            selectedTileId = newPos;
-            const landedTile = BOARD_TILES[newPos];
+            const landedTile = BOARD_TILES[player.position];
             addGameLog(`🎲 ${player.name} rolled ${d1}+${d2}=${total} and landed on ${landedTile.name}.`, 'move');
-
             resolveTileLanding(player, landedTile, total);
 
             gameState.turnPhase = 'END';
@@ -2882,23 +2744,23 @@
                 const prop = gameState.properties[tile.id];
                 if (prop && prop.owner && prop.owner !== player.id) {
                     const ownerPlayer = gameState.players.find(p => p.id === prop.owner);
-                    if (ownerPlayer && !ownerPlayer.bankrupt && !ownerPlayer.inJail) {
+                    if (ownerPlayer && !ownerPlayer.bankrupt && !ownerPlayer.inJail && !prop.mortgaged) {
                         const rent = calculateRent(tile, prop, diceSum);
                         player.cash -= rent;
                         ownerPlayer.cash += rent;
                         playSoundEffect('tax');
                         addGameLog(`💸 ${player.name} paid $${rent} rent to ${ownerPlayer.name} for ${tile.name}!`, 'tax');
                         showBannerToast(`💸 ${player.name} paid $${rent} rent to ${ownerPlayer.name}`);
+                        showFloatingEmotePopup({ emoji: `-$${rent}`, sender: player.name, color: '#f43f5e' });
                     }
                 }
             } else if (tile.type === 'tax') {
                 const tax = tile.amount || 100;
                 player.cash -= tax;
-                if (gameState.rules.freeParkingJackpot) {
-                    gameState.freeParkingPot = (gameState.freeParkingPot || 0) + tax;
-                }
+                if (gameState.rules.freeParkingJackpot) gameState.freeParkingPot = (gameState.freeParkingPot || 0) + tax;
                 playSoundEffect('tax');
                 addGameLog(`🏛️ ${player.name} paid $${tax} in ${tile.name}.`, 'tax');
+                showFloatingEmotePopup({ emoji: `-$${tax}`, sender: player.name, color: '#f43f5e' });
             } else if (tile.type === 'parking') {
                 if (gameState.rules.freeParkingJackpot && gameState.freeParkingPot > 0) {
                     const jackpot = gameState.freeParkingPot;
@@ -2907,6 +2769,7 @@
                     playSoundEffect('buy');
                     addGameLog(`🎉 ${player.name} won the $${jackpot} Free Parking Jackpot!`, 'cash');
                     showBannerToast(`🎉 ${player.name} claimed $${jackpot} Jackpot!`);
+                    showFloatingEmotePopup({ emoji: `+$${jackpot}`, sender: player.name, color: '#10b981' });
                 }
             } else if (tile.type === 'gotojail') {
                 player.position = 10;
@@ -2939,13 +2802,10 @@
                 }
             }
 
-            // Check bankruptcy
             if (player.cash < 0) {
                 player.bankrupt = true;
                 Object.keys(gameState.properties).forEach(tid => {
-                    if (gameState.properties[tid]?.owner === player.id) {
-                        delete gameState.properties[tid];
-                    }
+                    if (gameState.properties[tid]?.owner === player.id) delete gameState.properties[tid];
                 });
                 addGameLog(`💥 ${player.name} went BANKRUPT! All their properties returned to the market.`, 'tax');
                 showBannerToast(`💥 ${player.name} went bankrupt!`);
@@ -2953,7 +2813,7 @@
         }
 
         function handleBuyProperty() {
-            if (!canLocalUserAct()) return;
+            if (!canLocalUserAct() || isAnimatingMove) return;
             const player = getCurrentPlayer();
             if (!player) return;
             const tile = BOARD_TILES[player.position];
@@ -2973,13 +2833,13 @@
         }
 
         function handleUpgradeCurrentTile(explicitTileId) {
-            if (!canLocalUserAct()) return;
+            if (!canLocalUserAct() || isAnimatingMove) return;
             const player = getCurrentPlayer();
             if (!player) return;
             const tid = typeof explicitTileId === 'number' ? explicitTileId : player.position;
             const tile = BOARD_TILES[tid];
             const prop = gameState.properties[tid];
-            if (!tile || tile.type !== 'property' || !prop || prop.owner !== player.id) return;
+            if (!tile || tile.type !== 'property' || !prop || prop.owner !== player.id || prop.mortgaged) return;
             if (prop.houses >= 5) {
                 showBannerToast("Maximum Hotel level reached!");
                 return;
@@ -2997,8 +2857,34 @@
             syncStateToCloud();
         }
 
+        function handleToggleMortgage(tileId) {
+            if (!canLocalUserAct() || isAnimatingMove) return;
+            const player = getCurrentPlayer();
+            const tile = BOARD_TILES[tileId];
+            const prop = gameState.properties[tileId];
+            if (!player || !tile || !prop || prop.owner !== player.id) return;
+            const mortgageVal = Math.floor(tile.price / 2);
+
+            if (!prop.mortgaged) {
+                prop.mortgaged = true;
+                player.cash += mortgageVal;
+                addGameLog(`🏦 ${player.name} mortgaged ${tile.name} for +$${mortgageVal}.`, 'event');
+            } else {
+                const unmortgageCost = Math.ceil(mortgageVal * 1.1);
+                if (player.cash < unmortgageCost) {
+                    showBannerToast(`Need $${unmortgageCost} to unmortgage!`);
+                    return;
+                }
+                player.cash -= unmortgageCost;
+                prop.mortgaged = false;
+                addGameLog(`🏦 ${player.name} unmortgaged ${tile.name} for -$${unmortgageCost}.`, 'event');
+            }
+            playSoundEffect('step');
+            syncStateToCloud();
+        }
+
         function handlePayJailBail() {
-            if (!canLocalUserAct()) return;
+            if (!canLocalUserAct() || isAnimatingMove) return;
             const player = getCurrentPlayer();
             if (!player || !player.inJail || player.cash < 50) return;
             player.cash -= 50;
@@ -3010,7 +2896,7 @@
         }
 
         function handleEndTurn() {
-            if (!canLocalUserAct()) return;
+            if (!canLocalUserAct() || isAnimatingMove) return;
             const alivePlayers = gameState.players.filter(p => !p.bankrupt);
             if (alivePlayers.length <= 1 && gameState.players.length > 1) {
                 const winner = alivePlayers[0];
@@ -3030,31 +2916,26 @@
             gameState.turnIndex = nextIdx;
             gameState.turnPhase = 'ROLL';
             const nextPlayer = getCurrentPlayer();
-            if (nextPlayer) {
-                selectedTileId = nextPlayer.position || 0;
-            }
+            if (nextPlayer) selectedTileId = nextPlayer.position || 0;
             playSoundEffect('step');
             syncStateToCloud();
             checkAndTriggerBotTurn();
         }
 
         function checkAndTriggerBotTurn() {
-            if (!canRunBotsHere()) return;
-            if (gameState.status !== 'playing') return;
+            if (!canRunBotsHere() || gameState.status !== 'playing') return;
             const current = getCurrentPlayer();
             if (!current || !current.isBot || current.bankrupt) return;
 
             if (botTurnTimer) clearTimeout(botTurnTimer);
-            botTurnTimer = setTimeout(() => {
-                if (gameState.status !== 'playing') return;
+            botTurnTimer = setTimeout(async () => {
+                if (gameState.status !== 'playing' || isAnimatingMove) return;
                 const bot = getCurrentPlayer();
                 if (!bot || !bot.isBot) return;
 
                 if (gameState.turnPhase === 'ROLL') {
-                    if (bot.inJail && bot.cash >= 250) {
-                        handlePayJailBail();
-                    }
-                    handleRollDice();
+                    if (bot.inJail && bot.cash >= 250) handlePayJailBail();
+                    await handleRollDice();
                     setTimeout(() => {
                         const tile = BOARD_TILES[bot.position];
                         const prop = tile ? gameState.properties[tile.id] : null;
@@ -3064,11 +2945,9 @@
                             handleUpgradeCurrentTile(tile.id);
                         }
                         setTimeout(() => {
-                            if (getCurrentPlayer()?.id === bot.id && gameState.turnPhase === 'END') {
-                                handleEndTurn();
-                            }
+                            if (getCurrentPlayer()?.id === bot.id && gameState.turnPhase === 'END') handleEndTurn();
                         }, 650);
-                    }, 700);
+                    }, 550);
                 } else {
                     handleEndTurn();
                 }
@@ -3076,7 +2955,7 @@
         }
 
         // =====================================================================
-        // EMOTES, LOGS, TOASTS & UI RENDERING
+        // EMOTES, TITLE DEED INSPECTOR & UI RENDERING
         // =====================================================================
         const PREDEFINED_EMOTES = ['🎲', '💸', '🔥', '😂', '👑', '🤝', '🚀', '😱'];
 
@@ -3084,20 +2963,13 @@
             const bar = document.getElementById('emote-bar-container');
             if (!bar) return;
             bar.innerHTML = PREDEFINED_EMOTES.map(emoji => `
-                <button onclick="sendQuickEmote('${emoji}')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg hover:bg-slate-800 flex items-center justify-center text-sm sm:text-base transition transform hover:scale-110">
-                    ${emoji}
-                </button>
+                <button onclick="sendQuickEmote('${emoji}')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg hover:bg-slate-800 flex items-center justify-center text-sm sm:text-base transition transform hover:scale-110">${emoji}</button>
             `).join('');
         }
 
         function sendQuickEmote(emoji) {
             const me = getMyLobbyPlayer() || getCurrentPlayer();
-            const emoteObj = {
-                emoji,
-                sender: me ? me.name : 'Tycoon',
-                color: me ? me.color : '#10b981',
-                timestamp: Date.now()
-            };
+            const emoteObj = { emoji, sender: me ? me.name : 'Tycoon', color: me ? me.color : '#10b981', timestamp: Date.now() };
             lastSeenEmoteTimestamp = emoteObj.timestamp;
             gameState.lastEmote = emoteObj;
             showFloatingEmotePopup(emoteObj);
@@ -3110,11 +2982,11 @@
             const el = document.createElement('div');
             el.className = 'floating-emote-anim bg-slate-900/95 border border-slate-700 px-4 py-2 rounded-2xl shadow-2xl flex items-center gap-2';
             el.innerHTML = `
-                <span class="text-2xl">${emote.emoji}</span>
+                <span class="text-xl sm:text-2xl font-black">${emote.emoji}</span>
                 <span class="text-xs font-extrabold" style="color:${emote.color || '#fff'}">${netCleanText(emote.sender)}</span>
             `;
             container.appendChild(el);
-            setTimeout(() => el.remove(), 2600);
+            setTimeout(() => el.remove(), 2400);
         }
 
         let toastTimeout = null;
@@ -3138,10 +3010,7 @@
             if (gameState.logs.length > 50) gameState.logs.shift();
         }
 
-        function clearLocalLogs() {
-            gameState.logs = [];
-            renderAllUI();
-        }
+        function clearLocalLogs() { gameState.logs = []; renderAllUI(); }
 
         function selectTileInspector(tileId) {
             selectedTileId = tileId;
@@ -3158,37 +3027,44 @@
             const prop = gameState.properties[tile.id];
             const owner = prop?.owner ? gameState.players.find(p => p.id === prop.owner) : null;
             const current = getCurrentPlayer();
-            const canBuildHere = canLocalUserAct() && current && prop?.owner === current.id && tile.type === 'property' && (prop.houses || 0) < 5 && current.cash >= (tile.houseCost || 100);
+            const isMine = canLocalUserAct() && current && prop?.owner === current.id;
+            const houses = prop?.houses || 0;
 
             panel.innerHTML = `
-                <div class="rounded-xl p-2.5 text-white font-extrabold text-sm flex items-center justify-between" style="background:${tile.color || '#334155'}">
-                    <span class="truncate">${tile.name}</span>
-                    ${tile.price ? `<span class="font-mono text-xs bg-slate-950/40 px-2 py-0.5 rounded-md">$${tile.price}</span>` : ''}
+                <div class="rounded-xl p-3 text-white shadow-inner border border-white/10" style="background:${tile.color || '#334155'}">
+                    <div class="text-[9px] uppercase tracking-widest font-black opacity-80">${tile.state || tile.type} Title Deed</div>
+                    <div class="font-black text-sm sm:text-base flex items-center justify-between mt-0.5">
+                        <span class="truncate">${tile.name}</span>
+                        ${tile.price ? `<span class="font-mono text-xs bg-slate-950/45 px-2 py-0.5 rounded-md">$${tile.price}</span>` : ''}
+                    </div>
                 </div>
                 <div class="text-xs text-slate-300 space-y-1.5 pt-1">
-                    <div class="flex justify-between">
-                        <span class="text-slate-400">Owner:</span>
-                        <span class="font-bold" style="color:${owner ? owner.color : '#94a3b8'}">${owner ? owner.name : 'Unowned'}</span>
+                    <div class="flex justify-between items-center bg-slate-900/60 px-2.5 py-1.5 rounded-lg">
+                        <span class="text-slate-400">Owner</span>
+                        <span class="font-extrabold" style="color:${owner ? owner.color : '#94a3b8'}">${owner ? owner.name : 'Available'} ${prop?.mortgaged ? '(MORTGAGED)' : ''}</span>
                     </div>
                     ${tile.type === 'property' ? `
-                        <div class="flex justify-between">
-                            <span class="text-slate-400">Base Rent:</span>
-                            <span class="font-mono font-bold text-emerald-400">$${tile.rent[0]}</span>
+                        <div class="space-y-1 bg-slate-900/45 p-2 rounded-xl font-mono text-[11px]">
+                            <div class="flex justify-between ${houses === 0 ? 'text-emerald-400 font-bold' : 'text-slate-400'}"><span>Base Rent</span><span>$${tile.rent[0]}</span></div>
+                            <div class="flex justify-between ${houses === 1 ? 'text-emerald-400 font-bold' : 'text-slate-400'}"><span>1 House 🏠</span><span>$${tile.rent[1]}</span></div>
+                            <div class="flex justify-between ${houses === 2 ? 'text-emerald-400 font-bold' : 'text-slate-400'}"><span>2 Houses 🏠🏠</span><span>$${tile.rent[2]}</span></div>
+                            <div class="flex justify-between ${houses === 3 ? 'text-emerald-400 font-bold' : 'text-slate-400'}"><span>3 Houses 🏠🏠🏠</span><span>$${tile.rent[3]}</span></div>
+                            <div class="flex justify-between ${houses === 4 ? 'text-emerald-400 font-bold' : 'text-slate-400'}"><span>4 Houses 🏠×4</span><span>$${tile.rent[4]}</span></div>
+                            <div class="flex justify-between ${houses === 5 ? 'text-amber-400 font-bold' : 'text-slate-400'}"><span>HOTEL 🏨</span><span>$${tile.rent[5]}</span></div>
                         </div>
-                        <div class="flex justify-between">
-                            <span class="text-slate-400">1–4 Houses:</span>
-                            <span class="font-mono text-[11px] text-slate-200">$${tile.rent[1]} /$${tile.rent[2]} / $${tile.rent[3]} /$${tile.rent[4]}</span>
+                        <div class="flex gap-1.5 pt-1">
+                            ${isMine && !prop.mortgaged && houses < 5 && current.cash >= (tile.houseCost || 100) ? `
+                                <button onclick="handleUpgradeCurrentTile(${tile.id})" class="flex-1 py-1.5 rounded-xl bg-sky-400 hover:bg-sky-300 text-slate-950 font-black text-xs transition">
+                                    🔨 Build ($${tile.houseCost})
+                                </button>
+                            ` : ''}
+                            ${isMine ? `
+                                <button onclick="handleToggleMortgage(${tile.id})" class="flex-1 py-1.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold text-xs transition">
+                                    ${prop.mortgaged ? 'Unmortgage' : `Mortgage (+$${Math.floor(tile.price / 2)})`}
+                                </button>
+                            ` : ''}
                         </div>
-                        <div class="flex justify-between">
-                            <span class="text-slate-400">Hotel Rent:</span>
-                            <span class="font-mono font-bold text-amber-400">$${tile.rent[5]}</span> </div> <div class="flex justify-between"> <span class="text-slate-400">Build Cost:</span> <span class="font-mono text-sky-300">$${tile.houseCost}/level</span>
-                        </div>
-                        ${canBuildHere ? `
-                            <button onclick="handleUpgradeCurrentTile(${tile.id})" class="w-full mt-2 py-1.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-extrabold text-xs transition">
-                                🔨 Build House ($${tile.houseCost})
-                            </button>
-                        ` : ''}
-                    ` : `<p class="text-[11px] text-slate-400">Special board space (${tile.type.toUpperCase()}).</p>`}
+                    ` : `<p class="text-[11px] text-slate-400 px-1">Special board space (${tile.type.toUpperCase()}).</p>`}
                 </div>
             `;
         }
@@ -3197,22 +3073,26 @@
             const current = getCurrentPlayer();
             const canAct = canLocalUserAct();
 
-            // Update Dice & Center Hub
-            const [d1, d2] = gameState.lastDice || [1, 1];
-            const f1 = document.getElementById('die-face-1');
-            const f2 = document.getElementById('die-face-2');
-            if (f1) f1.textContent = d1;
-            if (f2) f2.textContent = d2;
+            // Render 3x3 Pip Dice in both 2D Center and 3D Floating Dock
+            const [d1, d2, sum] = gameState.lastDice || [1, 1, 2];
+            renderPipDieElement(document.getElementById('die-face-1'), d1);
+            renderPipDieElement(document.getElementById('die-face-2'), d2);
+            renderPipDieElement(document.getElementById('die-3d-dock-1'), d1);
+            renderPipDieElement(document.getElementById('die-3d-dock-2'), d2);
+
+            const sumPill = document.getElementById('dice-sum-pill');
+            if (sumPill) sumPill.textContent = `Total: ${(d1 || 1) + (d2 || 1)}`;
+            const doublesPill = document.getElementById('dice-doubles-pill');
+            if (doublesPill) doublesPill.classList.toggle('hidden', d1 !== d2);
 
             const potEl = document.getElementById('center-jackpot-amount');
             if (potEl) potEl.textContent = gameState.freeParkingPot || 0;
 
             const subEl = document.getElementById('center-status-subtitle');
             if (subEl && current) {
-                subEl.textContent = `${current.name}'s Turn • ${gameState.turnPhase === 'ROLL' ? 'Roll the Dice' : 'Buy, Build, or End Turn'}`;
+                subEl.textContent = `${current.name}'s Turn • ${gameState.turnPhase === 'ROLL' ? 'Tap Dice or Roll to Move' : 'Buy, Build, or End Turn'}`;
             }
 
-            // Update Active Turn Banner & Buttons
             const phaseBadge = document.getElementById('turn-phase-badge');
             if (phaseBadge) phaseBadge.textContent = gameState.turnPhase;
 
@@ -3232,43 +3112,43 @@
                 `;
             }
 
+            // Action Buttons (2D Center Console + 3D Bottom Dock)
+            const curTile = current ? BOARD_TILES[current.position] : null;
+            const curProp = curTile ? gameState.properties[curTile.id] : null;
+            const showRoll = gameState.turnPhase === 'ROLL';
+            const canBuy = canAct && !current?.isBot && gameState.turnPhase === 'END' && curTile && ['property', 'railroad', 'utility'].includes(curTile.type) && !curProp && current.cash >= curTile.price;
+            const canBuild = canAct && !current?.isBot && curTile && curTile.type === 'property' && curProp?.owner === current?.id && !curProp.mortgaged && (curProp.houses || 0) < 5 && current.cash >= (curTile.houseCost || 100);
+            const showBail = canAct && !current?.isBot && Boolean(current?.inJail) && current.cash >= 50;
+
             const rollBtn = document.getElementById('btn-roll-dice');
             const buyBtn = document.getElementById('btn-buy-property');
             const buildBtn = document.getElementById('btn-build-house');
             const bailBtn = document.getElementById('btn-pay-bail');
             const endBtn = document.getElementById('btn-end-turn');
 
-            if (rollBtn) {
-                rollBtn.disabled = !canAct || gameState.turnPhase !== 'ROLL' || Boolean(current?.isBot);
-                rollBtn.classList.toggle('hidden', gameState.turnPhase !== 'ROLL');
-            }
-            if (endBtn) {
-                endBtn.disabled = !canAct || Boolean(current?.isBot);
-                endBtn.classList.toggle('hidden', gameState.turnPhase === 'ROLL');
-            }
-
-            const curTile = current ? BOARD_TILES[current.position] : null;
-            const curProp = curTile ? gameState.properties[curTile.id] : null;
-            const canBuy = canAct && !current?.isBot && gameState.turnPhase === 'END' && curTile && ['property', 'railroad', 'utility'].includes(curTile.type) && !curProp && current.cash >= curTile.price;
+            if (rollBtn) { rollBtn.disabled = !canAct || !showRoll || Boolean(current?.isBot); rollBtn.classList.toggle('hidden', !showRoll); }
+            if (endBtn) { endBtn.disabled = !canAct || Boolean(current?.isBot); endBtn.classList.toggle('hidden', showRoll); }
             if (buyBtn) {
                 buyBtn.classList.toggle('hidden', !canBuy);
-                const buyLbl = document.getElementById('btn-buy-label');
-                if (buyLbl && curTile) buyLbl.textContent = `Buy ($${curTile.price})`;
+                const lbl = document.getElementById('btn-buy-label');
+                if (lbl && curTile) lbl.textContent = `Buy ${curTile.name} ($${curTile.price})`;
             }
-
-            const canBuild = canAct && !current?.isBot && curTile && curTile.type === 'property' && curProp?.owner === current?.id && (curProp.houses || 0) < 5 && current.cash >= (curTile.houseCost || 100);
             if (buildBtn) {
                 buildBtn.classList.toggle('hidden', !canBuild);
-                const buildLbl = document.getElementById('btn-build-label');
-                if (buildLbl && curTile) buildLbl.textContent = `Build ($${curTile.houseCost})`;
+                const lbl = document.getElementById('btn-build-label');
+                if (lbl && curTile) lbl.textContent = `Build ($${curTile.houseCost})`;
             }
+            if (bailBtn) bailBtn.classList.toggle('hidden', !showBail);
 
-            if (bailBtn) {
-                const showBail = canAct && !current?.isBot && Boolean(current?.inJail) && current.cash >= 50;
-                bailBtn.classList.toggle('hidden', !showBail);
-            }
+            // Sync 3D Dock Buttons
+            document.getElementById('btn-3d-roll')?.classList.toggle('hidden', !showRoll);
+            document.getElementById('btn-3d-end')?.classList.toggle('hidden', showRoll);
+            document.getElementById('btn-3d-buy')?.classList.toggle('hidden', !canBuy);
+            document.getElementById('btn-3d-build')?.classList.toggle('hidden', !canBuild);
+            const buy3dLbl = document.getElementById('btn-3d-buy-label');
+            if (buy3dLbl && curTile) buy3dLbl.textContent = `Buy ($${curTile.price})`;
 
-            // Players Roster List
+            // Players Roster
             const rosterCount = document.getElementById('roster-count-label');
             if (rosterCount) rosterCount.textContent = `${gameState.players.length} Seats`;
 
@@ -3298,7 +3178,7 @@
                 }).join('');
             }
 
-            // My Portfolio Pills
+            // Portfolio Pills
             const portfolioEl = document.getElementById('my-portfolio-pills');
             if (portfolioEl) {
                 const targetPlayer = isOnlineRoom() ? getMyLobbyPlayer() : current;
@@ -3308,8 +3188,11 @@
                     : '<span class="text-[11px] text-slate-500">No properties owned yet</span>';
             }
 
-            // Update 2D Board Tokens, Owners, and Houses
+            // Update 2D Board Tiles
             BOARD_TILES.forEach((tile, idx) => {
+                const cell = document.getElementById(`tile-2d-${idx}`);
+                if (cell) cell.classList.toggle('active-landed-tile', current?.position === idx);
+
                 const tokWrap = document.getElementById(`tile-tokens-${idx}`);
                 if (tokWrap) {
                     const here = gameState.players.filter(p => !p.bankrupt && (p.position || 0) === idx);
@@ -3330,17 +3213,12 @@
                 const houseBar = document.getElementById(`tile-houses-${idx}`);
                 if (houseBar && tile.type === 'property') {
                     const houses = prop?.houses || 0;
-                    if (houses === 5) {
-                        houseBar.innerHTML = '<i class="fa-solid fa-hotel text-[9px] text-white drop-shadow"></i>';
-                    } else if (houses > 0) {
-                        houseBar.innerHTML = Array(houses).fill('<i class="fa-solid fa-house text-[7px] text-white drop-shadow"></i>').join('');
-                    } else {
-                        houseBar.innerHTML = '';
-                    }
+                    if (houses === 5) houseBar.innerHTML = '<i class="fa-solid fa-hotel text-[9px] text-white drop-shadow"></i>';
+                    else if (houses > 0) houseBar.innerHTML = Array(houses).fill('<i class="fa-solid fa-house text-[7px] text-white drop-shadow"></i>').join('');
+                    else houseBar.innerHTML = '';
                 }
             });
 
-            // Render Inspector & Logs
             renderTileInspector();
 
             const logEl = document.getElementById('game-log-list');
@@ -3393,8 +3271,6 @@
             renderStartMenuUI();
             animateThreeLoop();
 
-            // Firebase is optional and usually not configured on GitHub Pages.
-            // Never let it block (4s cap) or break the multiplayer join.
             const firebaseInit = Promise.resolve()
                 .then(() => initFirebaseConnection())
                 .catch((e) => console.warn('[net] Firebase unavailable; using P2P + MQTT relay only.', e));
