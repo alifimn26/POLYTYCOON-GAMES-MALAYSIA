@@ -11,7 +11,204 @@
     <script src="https://cdn.jsdelivr.net/npm/mqtt@5.3.4/dist/mqtt.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-<!-- ... existing code ... -->
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap');
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: radial-gradient(circle at 50% 20%, #0f172a 0%, #020617 100%);
+            color: #f8fafc;
+            overflow: hidden;
+            height: 100dvh;
+            width: 100vw;
+            margin: 0;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(71, 85, 105, 0.8);
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(16, 185, 129, 0.8);
+        }
+
+        /* 2D Board 11x11 CSS Grid */
+        #board-2d-grid {
+            display: grid;
+            grid-template-columns: 1.35fr repeat(9, 1fr) 1.35fr;
+            grid-template-rows: 1.35fr repeat(9, 1fr) 1.35fr;
+            gap: 2px;
+            background: #1e293b;
+            border: 3px solid #334155;
+            border-radius: 14px;
+            box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.85), 0 0 35px rgba(16, 185, 129, 0.12);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .board-tile {
+            position: relative;
+            background: #0f172a;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            padding: 2px;
+            cursor: pointer;
+            transition: transform 0.14s ease, background-color 0.14s ease, box-shadow 0.14s ease;
+            overflow: hidden;
+            border: 1px solid rgba(51, 65, 85, 0.45);
+        }
+
+        .board-tile:hover {
+            background: #1e293b;
+            z-index: 10;
+            box-shadow: 0 0 0 2px #38bdf8 inset;
+        }
+
+        .board-tile.selected-tile {
+            box-shadow: 0 0 0 2px #10b981 inset, 0 0 12px rgba(16, 185, 129, 0.45);
+            background: #172554;
+            z-index: 12;
+        }
+
+        .board-tile.corner-tile {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            font-weight: 800;
+            justify-content: center;
+        }
+
+        .tile-color-bar {
+            width: 100%;
+            height: 22%;
+            min-height: 6px;
+            border-radius: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1px;
+            flex-shrink: 0;
+        }
+
+        .tile-name {
+            font-size: clamp(6px, 0.68vw, 10px);
+            font-weight: 700;
+            text-align: center;
+            line-height: 1.05;
+            color: #e2e8f0;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            padding: 0 1px;
+        }
+
+        .tile-price {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: clamp(6px, 0.62vw, 9px);
+            font-weight: 700;
+            color: #94a3b8;
+        }
+
+        .tile-owner-strip {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+        }
+
+        .tile-tokens-wrap {
+            position: absolute;
+            inset: 18% 2px 14% 2px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        .player-token-dot {
+            width: clamp(12px, 1.4vw, 20px);
+            height: clamp(12px, 1.4vw, 20px);
+            border-radius: 9999px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(7px, 0.8vw, 11px);
+            color: #fff;
+            border: 1.5px solid #fff;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.75);
+            transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .player-token-dot.active-turn-token {
+            transform: scale(1.22);
+            box-shadow: 0 0 0 2px #10b981, 0 4px 10px rgba(0, 0, 0, 0.85);
+        }
+
+        /* Board Center Hub */
+        #board-center-hub {
+            grid-column: 2 / 11;
+            grid-row: 2 / 11;
+            background: radial-gradient(circle at center, #0f172a 0%, #020617 100%);
+            border: 1px solid rgba(51, 65, 85, 0.6);
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            padding: clamp(8px, 1.5vw, 20px);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Dice Animation */
+        @keyframes diceShake {
+            0%, 100% { transform: rotate(0deg) scale(1); }
+            20% { transform: rotate(-18deg) scale(1.1); }
+            40% { transform: rotate(16deg) scale(1.12); }
+            60% { transform: rotate(-12deg) scale(1.08); }
+            80% { transform: rotate(10deg) scale(1.04); }
+        }
+        .dice-rolling {
+            animation: diceShake 0.42s ease-in-out infinite;
+        }
+
+        @keyframes floatUpFade {
+            0% { opacity: 0; transform: translateY(16px) scale(0.8); }
+            15% { opacity: 1; transform: translateY(0px) scale(1.05); }
+            80% { opacity: 1; transform: translateY(-18px) scale(1); }
+            100% { opacity: 0; transform: translateY(-34px) scale(0.9); }
+        }
+        .floating-emote-anim {
+            animation: floatUpFade 2.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen w-screen overflow-hidden select-none">
+
+    <!-- TOP HEADER BAR -->
+    <header class="h-14 shrink-0 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-3 sm:px-5 flex items-center justify-between gap-2 z-30">
+        <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-cyan-600 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                <i class="fa-solid fa-cubes-stacked text-white text-base"></i>
+            </div>
             <div>
                 <div class="flex items-center gap-2">
                     <h1 class="font-extrabold text-sm sm:text-lg tracking-tight bg-gradient-to-r from-white via-slate-100 to-emerald-400 bg-clip-text text-transparent">POLYTYCOON</h1>
@@ -24,7 +221,616 @@
         <!-- Center Room Badge & 2D/3D View Mode Switcher -->
         <div class="flex items-center gap-2 sm:gap-3">
             <div id="room-code-pill" class="flex items-center gap-1.5 bg-slate-800/90 border border-slate-700 px-2.5 py-1 rounded-xl">
-<!-- ... existing code ... -->
+                <span class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold hidden sm:inline">Room</span>
+                <span id="header-room-code" class="font-mono font-extrabold text-xs sm:text-sm text-emerald-400 tracking-widest">LOCAL</span>
+                <button onclick="openShareModal()" class="text-slate-400 hover:text-white transition px-1" title="Multiplayer Room & Invite Link">
+                    <i class="fa-solid fa-share-nodes text-xs"></i>
+                </button>
+                <button id="btn-reconnect-p2p" onclick="reconnectMultiplayerRoom(false)" class="hidden text-amber-400 hover:text-amber-300 transition px-1" title="Reconnect P2P / Relay">
+                    <i class="fa-solid fa-rotate text-xs"></i>
+                </button>
+            </div>
+
+            <!-- Map Theme Selector -->
+            <select id="header-map-select" onchange="changeMapTheme(this.value)" class="hidden md:block bg-slate-800 border border-slate-700 text-slate-200 text-xs font-semibold rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-emerald-500">
+                <option value="malaysia">🇲🇾 Malaysia Edition</option>
+                <option value="classic">🎩 Classic Atlantic</option>
+            </select>
+
+            <!-- 2D / 3D Switcher -->
+            <div class="flex bg-slate-800 p-0.5 rounded-xl border border-slate-700">
+                <button id="btn-view-2d" onclick="setBoardViewMode('2d')" class="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-600 text-white transition">2D</button>
+                <button id="btn-view-3d" onclick="setBoardViewMode('3d')" class="px-2.5 py-1 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition">3D</button>
+            </div>
+        </div>
+
+        <!-- Right Quick Actions -->
+        <div class="flex items-center gap-1.5 sm:gap-2">
+            <button onclick="toggleSoundMute()" id="btn-sound-toggle" class="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 flex items-center justify-center text-slate-300 transition" title="Toggle Sound Effects">
+                <i class="fa-solid fa-volume-high text-xs"></i>
+            </button>
+            <button onclick="openShareModal()" class="px-2.5 py-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/40 text-indigo-300 text-xs font-bold flex items-center gap-1.5 transition">
+                <i class="fa-solid fa-users"></i>
+                <span class="hidden sm:inline">Invite</span>
+            </button>
+            <button onclick="openStartMenuModal()" class="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-emerald-600/20 transition">
+                <i class="fa-solid fa-gamepad"></i>
+                <span class="hidden sm:inline">Lobby</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN GAME WORKSPACE -->
+    <main class="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
+
+        <!-- LEFT SIDEBAR: PLAYERS ROSTER & TURN CONTROLS -->
+        <aside class="w-full lg:w-80 shrink-0 bg-slate-900/75 border-b lg:border-b-0 lg:border-r border-slate-800 flex flex-col justify-between p-2.5 sm:p-3.5 gap-3 overflow-y-auto z-20 max-h-[34vh] lg:max-h-none">
+            <div class="space-y-3">
+                <!-- Turn Banner & Controls -->
+                <div class="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-3 space-y-2.5 shadow-lg">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Current Turn</span>
+                        <span id="turn-phase-badge" class="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">ROLL</span>
+                    </div>
+                    <div id="active-player-banner" class="flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-full bg-sky-500 flex items-center justify-center text-white font-bold">
+                            <i class="fa-solid fa-hat-cowboy"></i>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <div class="font-extrabold text-sm truncate">TycoonAlex</div>
+                            <div class="text-xs text-emerald-400 font-mono font-bold">$1,500</div>
+                        </div>
+                    </div>
+
+                    <!-- Primary Action Buttons -->
+                    <div class="grid grid-cols-2 gap-2 pt-1">
+                        <button id="btn-roll-dice" onclick="handleRollDice()" class="col-span-2 py-2.5 px-4 rounded-xl font-extrabold text-xs sm:text-sm bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-2 transition disabled:opacity-40 disabled:pointer-events-none">
+                            <i class="fa-solid fa-dice text-base"></i>
+                            <span>ROLL DICE</span>
+                        </button>
+                        <button id="btn-buy-property" onclick="handleBuyProperty()" class="hidden py-2 px-3 rounded-xl font-bold text-xs bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md flex items-center justify-center gap-1.5 transition">
+                            <i class="fa-solid fa-cart-shopping"></i>
+                            <span id="btn-buy-label">Buy</span>
+                        </button>
+                        <button id="btn-build-house" onclick="handleUpgradeCurrentTile()" class="hidden py-2 px-3 rounded-xl font-bold text-xs bg-sky-500 hover:bg-sky-400 text-slate-950 shadow-md flex items-center justify-center gap-1.5 transition">
+                            <i class="fa-solid fa-house-chimney-medical"></i>
+                            <span id="btn-build-label">Build</span>
+                        </button>
+                        <button id="btn-pay-bail" onclick="handlePayJailBail()" class="hidden col-span-2 py-2 px-3 rounded-xl font-bold text-xs bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 flex items-center justify-center gap-1.5 transition">
+                            <i class="fa-solid fa-key"></i>
+                            <span>Pay $50 Jail Fine</span>
+                        </button>
+                        <button id="btn-end-turn" onclick="handleEndTurn()" class="hidden col-span-2 py-2.5 px-4 rounded-xl font-extrabold text-xs sm:text-sm bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/25 flex items-center justify-center gap-2 transition">
+                            <i class="fa-solid fa-forward-step"></i>
+                            <span>END TURN</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Players Roster -->
+                <div class="space-y-1.5">
+                    <div class="flex items-center justify-between px-1">
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Tycoons Roster</span>
+                        <span id="roster-count-label" class="text-[11px] font-mono text-slate-400">2 Seats</span>
+                    </div>
+                    <div id="players-roster-list" class="space-y-1.5"></div>
+                </div>
+            </div>
+
+            <!-- Owned Properties Summary -->
+            <div class="bg-slate-800/50 border border-slate-800 rounded-xl p-2.5 hidden lg:block">
+                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">My Portfolio</div>
+                <div id="my-portfolio-pills" class="flex flex-wrap gap-1 max-h-24 overflow-y-auto"></div>
+            </div>
+        </aside>
+
+        <!-- CENTER STAGE: 2D & 3D BOARD -->
+        <section id="board-stage-area" class="flex-1 relative flex items-center justify-center p-2 sm:p-4 overflow-hidden bg-slate-950/60">
+
+            <!-- Toast Banner -->
+            <div id="banner-toast" class="pointer-events-none fixed top-16 left-1/2 -translate-x-1/2 z-50 opacity-0 -translate-y-2 transition-all duration-300 bg-slate-900/95 border border-emerald-500/50 text-white px-4 py-2 rounded-2xl shadow-2xl text-xs sm:text-sm font-bold flex items-center gap-2">
+                <span id="banner-toast-text">Welcome to PolyTycoon!</span>
+            </div>
+
+            <!-- Floating Emotes Container -->
+            <div id="floating-emote-container" class="pointer-events-none absolute inset-0 flex items-center justify-center z-40"></div>
+
+            <!-- 2D BOARD WRAPPER -->
+            <div id="board-2d-wrapper" class="flex items-center justify-center">
+                <div id="board-2d-grid" style="width: 600px; height: 600px;">
+                    <!-- Center Hub inside 11x11 grid -->
+                    <div id="board-center-hub">
+                        <!-- Top Row: Map Badge & Jackpot -->
+                        <div class="w-full flex items-center justify-between gap-2">
+                            <span id="center-map-badge" class="text-[10px] sm:text-xs font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                                🇲🇾 Malaysia Edition
+                            </span>
+                            <div class="flex items-center gap-1.5 bg-amber-500/15 border border-amber-500/30 px-2.5 py-1 rounded-lg">
+                                <i class="fa-solid fa-sack-dollar text-amber-400 text-xs"></i>
+                                <span class="text-[10px] sm:text-xs font-mono font-bold text-amber-300">Pot: $<span id="center-jackpot-amount">0</span></span>
+                            </div>
+                        </div>
+
+                        <!-- Center Logo & Dice Stage -->
+                        <div class="flex flex-col items-center justify-center gap-2 sm:gap-3 my-auto">
+                            <div class="text-center">
+                                <h2 class="font-black text-lg sm:text-3xl tracking-tight bg-gradient-to-r from-white via-emerald-200 to-teal-400 bg-clip-text text-transparent">POLYTYCOON</h2>
+                                <p id="center-status-subtitle" class="text-[10px] sm:text-xs text-slate-400 font-medium mt-0.5">Roll the dice to build your empire</p>
+                            </div>
+
+                            <!-- Visual Dice Pair -->
+                            <div id="dice-visual-box" onclick="handleRollDice()" class="flex items-center gap-3 sm:gap-4 cursor-pointer py-2 px-4 rounded-2xl bg-slate-900/90 border border-slate-700/80 shadow-xl hover:border-emerald-500/50 transition" title="Click to Roll Dice">
+                                <div id="die-face-1" class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-white to-slate-200 text-slate-900 font-black text-lg sm:text-2xl flex items-center justify-center shadow-md">1</div>
+                                <div id="die-face-2" class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-white to-slate-200 text-slate-900 font-black text-lg sm:text-2xl flex items-center justify-center shadow-md">1</div>
+                            </div>
+                        </div>
+
+                        <!-- Bottom Emote Bar -->
+                        <div class="w-full flex flex-col items-center gap-1">
+                            <div id="emote-bar-container" class="flex items-center justify-center gap-1 sm:gap-1.5 bg-slate-900/90 border border-slate-800 px-2.5 py-1 rounded-xl"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3D BOARD WRAPPER -->
+            <div id="board-3d-wrapper" class="hidden w-full h-full relative items-center justify-center">
+                <div id="three-canvas-container" class="w-full h-full"></div>
+                <div class="absolute bottom-3 left-1/2 -translate-x-1/2 bg-slate-900/85 border border-slate-700 px-3 py-1.5 rounded-xl text-[11px] text-slate-300 flex items-center gap-3 pointer-events-none">
+                    <span><i class="fa-solid fa-computer-mouse text-emerald-400 mr-1"></i>Drag to Orbit</span>
+                    <span><i class="fa-solid fa-magnifying-glass-plus text-sky-400 mr-1"></i>Scroll to Zoom</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- RIGHT SIDEBAR: PROPERTY DEED INSPECTOR & GAME LOG -->
+        <aside class="w-full lg:w-80 shrink-0 bg-slate-900/75 border-t lg:border-t-0 lg:border-l border-slate-800 flex flex-col justify-between p-2.5 sm:p-3.5 gap-3 overflow-y-auto z-20 max-h-[28vh] lg:max-h-none">
+            <!-- Tile / Deed Inspector -->
+            <div id="tile-inspector-panel" class="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-3 space-y-2.5">
+                <!-- Populated dynamically -->
+            </div>
+
+            <!-- Live Activity Log -->
+            <div class="flex-1 flex flex-col min-h-[120px] bg-slate-950/70 border border-slate-800/90 rounded-2xl p-2.5 overflow-hidden">
+                <div class="flex items-center justify-between pb-1.5 mb-1.5 border-b border-slate-800">
+                    <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Live Game Log</span>
+                    <button onclick="clearLocalLogs()" class="text-[10px] text-slate-500 hover:text-slate-300">Clear</button>
+                </div>
+                <div id="game-log-list" class="flex-1 overflow-y-auto space-y-1.5 pr-1 text-xs font-medium"></div>
+            </div>
+        </aside>
+    </main>
+
+    <!-- ================================================================= -->
+    <!-- PRE-GAME START MENU & MULTIPLAYER LOBBY MODAL                     -->
+    <!-- ================================================================= -->
+    <div id="start-menu-modal" class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+        <div class="bg-slate-900 border border-slate-700/80 rounded-3xl max-w-2xl w-full p-4 sm:p-6 shadow-2xl space-y-4 my-auto max-h-[94vh] overflow-y-auto">
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg">
+                        <i class="fa-solid fa-crown text-white text-lg"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-lg sm:text-xl font-black tracking-tight text-white">PolyTycoon Setup & Lobby</h2>
+                        <p class="text-xs text-slate-400">Play solo against AI bots, Pass & Play, or Live P2P/MQTT Online</p>
+                    </div>
+                </div>
+                <span id="start-lobby-peer-count" class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Local Mode</span>
+            </div>
+
+            <!-- Mode Tabs -->
+            <div class="grid grid-cols-2 gap-2 bg-slate-800/90 p-1 rounded-2xl border border-slate-700">
+                <button id="tab-mode-local" onclick="setStartMenuMode('local')" class="py-2 px-3 rounded-xl font-bold text-xs sm:text-sm bg-emerald-600 text-white transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-couch"></i>
+                    <span>Local / AI Bots</span>
+                </button>
+                <button id="tab-mode-multiplayer" onclick="setStartMenuMode('multiplayer')" class="py-2 px-3 rounded-xl font-bold text-xs sm:text-sm text-slate-300 hover:text-white transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-globe"></i>
+                    <span>Online Multiplayer</span>
+                </button>
+            </div>
+
+            <!-- Online Room Controls (Shown in Multiplayer mode) -->
+            <div id="multiplayer-room-box" class="hidden bg-slate-800/60 border border-indigo-500/30 rounded-2xl p-3.5 space-y-3">
+                <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
+                    <div>
+                        <div class="text-xs font-extrabold text-indigo-300 uppercase tracking-wider">Online Room Synchronization</div>
+                        <p class="text-[11px] text-slate-400">Host a 4-letter room or enter a friend's room code</p>
+                    </div>
+                    <button onclick="createOnlineRoom()" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>Host New Room</span>
+                    </button>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <input id="lobby-join-code" type="text" maxlength="6" placeholder="ROOM CODE (e.g. K9X2)" class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-mono font-bold uppercase text-white focus:outline-none focus:border-indigo-500">
+                    <button onclick="joinOnlineRoom()" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition">
+                        Join Room
+                    </button>
+                    <button onclick="copyInviteLink()" class="px-3 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold text-xs transition" title="Copy Invite Link">
+                        <i class="fa-solid fa-link"></i>
+                    </button>
+                </div>
+
+                <p id="lobby-room-status" class="hidden text-xs text-emerald-400 font-semibold"></p>
+            </div>
+
+            <!-- My Player Customization Card -->
+            <div class="bg-slate-800/60 border border-slate-700/80 rounded-2xl p-3.5 space-y-3">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-300">Your Tycoon Profile</span>
+                    <button id="btn-my-ready-toggle" onclick="toggleMyLobbyReady()" class="px-3 py-1 rounded-lg text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                        ✅ Ready
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-[11px] text-slate-400 font-semibold block mb-1">Display Name</label>
+                        <input id="start-my-name-input" type="text" maxlength="20" value="TycoonAlex" oninput="updateMyLobbyProfile('name', this.value)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-white focus:outline-none focus:border-emerald-500">
+                    </div>
+                    <div>
+                        <label class="text-[11px] text-slate-400 font-semibold block mb-1">Token & Color</label>
+                        <div class="flex items-center gap-2">
+                            <div id="my-token-picker" class="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-700"></div>
+                            <div id="my-color-picker" class="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-700"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lobby Seats Roster & Bot Controls -->
+            <div class="bg-slate-800/60 border border-slate-700/80 rounded-2xl p-3.5 space-y-2.5">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-300">Lobby Seats (Max 6)</span>
+                    <div id="host-seat-buttons" class="flex items-center gap-1.5">
+                        <button onclick="addLobbySeat(false)" class="px-2.5 py-1 rounded-lg bg-sky-600/25 hover:bg-sky-600/40 text-sky-300 border border-sky-500/30 text-xs font-bold transition">+ Human</button>
+                        <button onclick="addLobbySeat(true)" class="px-2.5 py-1 rounded-lg bg-purple-600/25 hover:bg-purple-600/40 text-purple-300 border border-purple-500/30 text-xs font-bold transition">+ AI Bot</button>
+                    </div>
+                </div>
+                <div id="start-lobby-seats-list" class="space-y-1.5 max-h-44 overflow-y-auto pr-1"></div>
+            </div>
+
+            <!-- Board Theme & Rules Row -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 bg-slate-800/40 border border-slate-800 rounded-2xl p-3">
+                <div>
+                    <label class="text-[11px] text-slate-400 font-semibold block mb-1">Board Edition</label>
+                    <select id="rule-map-select" onchange="changeMapTheme(this.value)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs font-bold text-white">
+                        <option value="malaysia">🇲🇾 Malaysia Edition</option>
+                        <option value="classic">🎩 Classic Atlantic</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[11px] text-slate-400 font-semibold block mb-1">Starting Cash</label>
+                    <select id="rule-starting-cash" onchange="updateHouseRule('startingCash', Number(this.value))" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs font-bold text-white">
+                        <option value="1500">$1,500 (Standard)</option>
+                        <option value="2000">$2,000 (Rich Start)</option>
+                        <option value="1000">$1,000 (Hardcore)</option>
+                    </select>
+                </div>
+                <div class="flex flex-col justify-center gap-1 pt-2 sm:pt-0">
+                    <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                        <input id="rule-free-parking" type="checkbox" checked onchange="updateHouseRule('freeParkingJackpot', this.checked)" class="rounded accent-emerald-500">
+                        <span>Free Parking Jackpot</span>
+                    </label>
+                    <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                        <input id="rule-double-go" type="checkbox" checked onchange="updateHouseRule('doubleOnGo', this.checked)" class="rounded accent-emerald-500">
+                        <span>2x Salary on Exact GO</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Start Match / Resume Footer -->
+            <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+                <button id="btn-close-start-modal" onclick="closeStartMenuModal()" class="hidden px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition">
+                    Resume Current Game
+                </button>
+                <button id="btn-launch-match" onclick="startMatchFromLobby()" class="flex-1 sm:flex-none px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-extrabold text-sm shadow-lg shadow-emerald-600/25 transition">
+                    🚀 Start Match
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- SHARE / MULTIPLAYER INVITE MODAL                                  -->
+    <!-- ================================================================= -->
+    <div id="share-room-modal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-md w-full p-5 space-y-4 shadow-2xl">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <h3 class="font-extrabold text-base text-white flex items-center gap-2">
+                    <i class="fa-solid fa-tower-broadcast text-emerald-400"></i>
+                    <span>Multiplayer Room & Invite</span>
+                </h3>
+                <button onclick="closeShareModal()" class="text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="bg-slate-800/80 border border-slate-700 rounded-2xl p-3.5 text-center space-y-1">
+                <div class="text-[11px] uppercase font-bold text-slate-400">Active Room Code</div>
+                <div id="share-modal-room-code" class="font-mono font-black text-3xl tracking-widest text-emerald-400">LOCAL</div>
+                <div id="share-modal-p2p-status" class="text-xs text-slate-300 pt-1">Local Pass & Play Mode</div>
+            </div>
+
+            <div class="space-y-1.5">
+                <label class="text-xs font-bold text-slate-400">Your Player Name</label>
+                <input id="lobby-player-name" type="text" maxlength="20" value="TycoonAlex" oninput="updateMyLobbyProfile('name', this.value)" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-white">
+            </div>
+
+            <div class="space-y-1.5">
+                <label class="text-xs font-bold text-slate-400">Shareable Invite URL</label>
+                <div class="flex gap-2">
+                    <input id="share-url-input" type="text" readonly class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-slate-300">
+                    <button onclick="copyInviteLink()" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs">
+                        Copy
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between gap-2 pt-2 border-t border-slate-800">
+                <button onclick="createOnlineRoom()" class="flex-1 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs">
+                    Create New Online Room
+                </button>
+                <button onclick="closeShareModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs">
+                    Done
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // =====================================================================
+        // MAP THEMES (MALAYSIA EDITION & CLASSIC ATLANTIC)
+        // =====================================================================
+        const TOKEN_ICONS = {
+            hat: 'fa-hat-cowboy',
+            car: 'fa-car-side',
+            ship: 'fa-ship',
+            crown: 'fa-crown',
+            dragon: 'fa-dragon',
+            rocket: 'fa-rocket'
+        };
+
+        const PLAYER_COLORS = ['#38bdf8', '#f43f5e', '#10b981', '#f59e0b', '#a855f7', '#ec4899'];
+
+        const MAP_THEMES = {
+            malaysia: {
+                name: '🇲🇾 Malaysia Edition',
+                tiles: [
+                    { id: 0, name: 'MULA (GO)', type: 'go', price: 0, color: '#10b981' },
+                    { id: 1, name: 'Jonker Walk', state: 'Melaka', type: 'property', price: 60, rent: [2, 10, 30, 90, 160, 250], houseCost: 50, color: '#92400e' },
+                    { id: 2, name: 'Tabung Kebajikan', type: 'chest', price: 0, color: '#38bdf8' },
+                    { id: 3, name: 'A Famosa', state: 'Melaka', type: 'property', price: 60, rent: [4, 20, 60, 180, 320, 450], houseCost: 50, color: '#92400e' },
+                    { id: 4, name: 'Cukai Pendapatan', type: 'tax', amount: 200, price: 200, color: '#f43f5e' },
+                    { id: 5, name: 'KL Sentral', type: 'railroad', price: 200, rent: [25, 50, 100, 200], color: '#64748b' },
+                    { id: 6, name: 'Concubine Lane', state: 'Ipoh', type: 'property', price: 100, rent: [6, 30, 90, 270, 400, 550], houseCost: 50, color: '#38bdf8' },
+                    { id: 7, name: 'Nasib (Chance)', type: 'chance', price: 0, color: '#f59e0b' },
+                    { id: 8, name: 'Kellie\'s Castle', state: 'Ipoh', type: 'property', price: 100, rent: [6, 30, 90, 270, 400, 550], houseCost: 50, color: '#38bdf8' },
+                    { id: 9, name: 'Taiping Lake', state: 'Perak', type: 'property', price: 120, rent: [8, 40, 100, 300, 450, 600], houseCost: 50, color: '#38bdf8' },
+                    { id: 10, name: 'Penjara / Lawatan', type: 'jail', price: 0, color: '#f97316' },
+                    { id: 11, name: 'Pantai Cenang', state: 'Langkawi', type: 'property', price: 140, rent: [10, 50, 150, 450, 625, 750], houseCost: 100, color: '#ec4899' },
+                    { id: 12, name: 'Tenaga Nasional', type: 'utility', price: 150, color: '#eab308' },
+                    { id: 13, name: 'Dataran Lang', state: 'Langkawi', type: 'property', price: 140, rent: [10, 50, 150, 450, 625, 750], houseCost: 100, color: '#ec4899' },
+                    { id: 14, name: 'SkyBridge', state: 'Langkawi', type: 'property', price: 160, rent: [12, 60, 180, 500, 700, 900], houseCost: 100, color: '#ec4899' },
+                    { id: 15, name: 'Penang Sentral', type: 'railroad', price: 200, rent: [25, 50, 100, 200], color: '#64748b' },
+                    { id: 16, name: 'Batu Ferringhi', state: 'Penang', type: 'property', price: 180, rent: [14, 70, 200, 550, 750, 950], houseCost: 100, color: '#f97316' },
+                    { id: 17, name: 'Tabung Kebajikan', type: 'chest', price: 0, color: '#38bdf8' },
+                    { id: 18, name: 'Bukit Bendera', state: 'Penang', type: 'property', price: 180, rent: [14, 70, 200, 550, 750, 950], houseCost: 100, color: '#f97316' },
+                    { id: 19, name: 'Komtar George Town', state: 'Penang', type: 'property', price: 200, rent: [16, 80, 220, 600, 800, 1000], houseCost: 100, color: '#f97316' },
+                    { id: 20, name: 'Parkir Percuma', type: 'parking', price: 0, color: '#10b981' },
+                    { id: 21, name: 'Mount Kinabalu', state: 'Sabah', type: 'property', price: 220, rent: [18, 90, 250, 700, 875, 1050], houseCost: 150, color: '#ef4444' },
+                    { id: 22, name: 'Nasib (Chance)', type: 'chance', price: 0, color: '#f59e0b' },
+                    { id: 23, name: 'Sipadan Island', state: 'Sabah', type: 'property', price: 220, rent: [18, 90, 250, 700, 875, 1050], houseCost: 150, color: '#ef4444' },
+                    { id: 24, name: 'Kuching Waterfront', state: 'Sarawak', type: 'property', price: 240, rent: [20, 100, 300, 750, 925, 1100], houseCost: 150, color: '#ef4444' },
+                    { id: 25, name: 'JB Sentral', type: 'railroad', price: 200, rent: [25, 50, 100, 200], color: '#64748b' },
+                    { id: 26, name: 'Iskandar Puteri', state: 'Johor', type: 'property', price: 260, rent: [22, 110, 330, 800, 975, 1150], houseCost: 150, color: '#eab308' },
+                    { id: 27, name: 'Desaru Coast', state: 'Johor', type: 'property', price: 260, rent: [22, 110, 330, 800, 975, 1150], houseCost: 150, color: '#eab308' },
+                    { id: 28, name: 'Air Selangor', type: 'utility', price: 150, color: '#38bdf8' },
+                    { id: 29, name: 'Genting Highlands', state: 'Pahang', type: 'property', price: 280, rent: [24, 120, 360, 850, 1025, 1200], houseCost: 150, color: '#eab308' },
+                    { id: 30, name: 'Masuk Penjara!', type: 'gotojail', price: 0, color: '#ef4444' },
+                    { id: 31, name: 'Putrajaya Boulevard', state: 'W.P.', type: 'property', price: 300, rent: [26, 130, 390, 900, 1100, 1275], houseCost: 200, color: '#10b981' },
+                    { id: 32, name: 'Cyberjaya Tech Hub', state: 'Selangor', type: 'property', price: 300, rent: [26, 130, 390, 900, 1100, 1275], houseCost: 200, color: '#10b981' },
+                    { id: 33, name: 'Tabung Kebajikan', type: 'chest', price: 0, color: '#38bdf8' },
+                    { id: 34, name: 'Bangsar South', state: 'KL', type: 'property', price: 320, rent: [28, 150, 450, 1000, 1200, 1400], houseCost: 200, color: '#10b981' },
+                    { id: 35, name: 'KLIA Terminal 1', type: 'railroad', price: 200, rent: [25, 50, 100, 200], color: '#64748b' },
+                    { id: 36, name: 'Nasib (Chance)', type: 'chance', price: 0, color: '#f59e0b' },
+                    { id: 37, name: 'Bukit Bintang', state: 'KL', type: 'property', price: 350, rent: [35, 175, 500, 1100, 1300, 1500], houseCost: 200, color: '#6366f1' },
+                    { id: 38, name: 'Cukai Mewah', type: 'tax', amount: 100, price: 100, color: '#f43f5e' },
+                    { id: 39, name: 'KLCC Twin Towers', state: 'KL', type: 'property', price: 400, rent: [50, 200, 600, 1400, 1700, 2000], houseCost: 200, color: '#6366f1' }
+                ],
+                chance: [
+                    { text: 'Advance to MULA (GO) and collect $200!', action: 'move', target: 0 },
+                    { text: 'Advance to KLCC Twin Towers!', action: 'move', target: 39 },
+                    { text: 'Advance to Komtar George Town!', action: 'move', target: 19 },
+                    { text: 'Petronas dividend payout! Collect $150.', action: 'cash', amount: 150 },
+                    { text: 'Speeding fine on PLUS Highway! Pay $50.', action: 'cash', amount: -50 },
+                    { text: 'Caught in traffic violation! Go directly to Jail.', action: 'jail' }
+                ],
+                chest: [
+                    { text: 'LHDN Tax Refund! Collect $100.', action: 'cash', amount: 100 },
+                    { text: 'Festive Duit Raya bonus! Collect $120.', action: 'cash', amount: 120 },
+                    { text: 'Medical clinic bill. Pay $50.', action: 'cash', amount: -50 },
+                    { text: 'Tourism Malaysia grant! Collect $200.', action: 'cash', amount: 200 },
+                    { text: 'Home maintenance fees. Pay $75.', action: 'cash', amount: -75 }
+                ]
+            },
+            classic: {
+                name: '🎩 Classic Atlantic',
+                tiles: [
+                    { id: 0, name: 'GO', type: 'go', price: 0, color: '#10b981' },
+                    { id: 1, name: 'Mediterranean Ave', type: 'property', price: 60, rent: [2, 10, 30, 90, 160, 250], houseCost: 50, color: '#92400e' },
+                    { id: 2, name: 'Community Chest', type: 'chest', price: 0, color: '#38bdf8' },
+                    { id: 3, name: 'Baltic Ave', type: 'property', price: 60, rent: [4, 20, 60, 180, 320, 450], houseCost: 50, color: '#92400e' },
+                    { id: 4, name: 'Income Tax', type: 'tax', amount: 200, price: 200, color: '#f43f5e' },
+                    { id: 5, name: 'Reading Railroad', type: 'railroad', price: 200, rent: [25, 50, 100, 200], color: '#64748b' },
+                    { id: 6, name: 'Oriental Ave', type: 'property', price: 100, rent: [6, 30, 90, 270, 400, 550], houseCost: 50, color: '#38bdf8' },
+                    { id: 7, name: 'Chance', type: 'chance', price: 0, color: '#f59e0b' },
+                    { id: 8, name: 'Vermont Ave', type: 'property', price: 100, rent: [6, 30, 90, 270, 400, 550], houseCost: 50, color: '#38bdf8' },
+                    { id: 9, name: 'Connecticut Ave', type: 'property', price: 120, rent: [8, 40, 100, 300, 450, 600], houseCost: 50, color: '#38bdf8' },
+                    { id: 10, name: 'Jail / Just Visiting', type: 'jail', price: 0, color: '#f97316' },
+                    { id: 11, name: 'St. Charles Place', type: 'property', price: 140, rent: [10, 50, 150, 450, 625, 750], houseCost: 100, color: '#ec4899' },
+                    { id: 12, name: 'Electric Company', type: 'utility', price: 150, color: '#eab308' },
+                    { id: 13, name: 'States Ave', type: 'property', price: 140, rent: [10, 50, 150, 450, 625, 750], houseCost: 100, color: '#ec4899' },
+                    { id: 14, name: 'Virginia Ave', type: 'property', price: 160, rent: [12, 60, 180, 500, 700, 900], houseCost: 100, color: '#ec4899' },
+                    { id: 15, name: 'Pennsylvania RR', type: 'railroad', price: 200, rent: [25, 50, 100, 200], color: '#64748b' },
+                    { id: 16, name: 'St. James Place', type: 'property', price: 180, rent: [14, 70, 200, 550, 750, 950], houseCost: 100, color: '#f97316' },
+                    { id: 17, name: 'Community Chest', type: 'chest', price: 0, color: '#38bdf8' },
+                    { id: 18, name: 'Tennessee Ave', type: 'property', price: 180, rent: [14, 70, 200, 550, 750, 950], houseCost: 100, color: '#f97316' },
+                    { id: 19, name: 'New York Ave', type: 'property', price: 200, rent: [16, 80, 220, 600, 800, 1000], houseCost: 100, color: '#f97316' },
+                    { id: 20, name: 'Free Parking', type: 'parking', price: 0, color: '#10b981' },
+                    { id: 21, name: 'Kentucky Ave', type: 'property', price: 220, rent: [18, 90, 250, 700, 875, 1050], houseCost: 150, color: '#ef4444' },
+                    { id: 22, name: 'Chance', type: 'chance', price: 0, color: '#f59e0b' },
+                    { id: 23, name: 'Indiana Ave', type: 'property', price: 220, rent: [18, 90, 250, 700, 875, 1050], houseCost: 150, color: '#ef4444' },
+                    { id: 24, name: 'Illinois Ave', type: 'property', price: 240, rent: [20, 100, 300, 750, 925, 1100], houseCost: 150, color: '#ef4444' },
+                    { id: 25, name: 'B. & O. Railroad', type: 'railroad', price: 200, rent: [25, 50, 100, 200], color: '#64748b' },
+                    { id: 26, name: 'Atlantic Ave', type: 'property', price: 260, rent: [22, 110, 330, 800, 975, 1150], houseCost: 150, color: '#eab308' },
+                    { id: 27, name: 'Ventnor Ave', type: 'property', price: 260, rent: [22, 110, 330, 800, 975, 1150], houseCost: 150, color: '#eab308' },
+                    { id: 28, name: 'Water Works', type: 'utility', price: 150, color: '#38bdf8' },
+                    { id: 29, name: 'Marvin Gardens', type: 'property', price: 280, rent: [24, 120, 360, 850, 1025, 1200], houseCost: 150, color: '#eab308' },
+                    { id: 30, name: 'Go To Jail', type: 'gotojail', price: 0, color: '#ef4444' },
+                    { id: 31, name: 'Pacific Ave', type: 'property', price: 300, rent: [26, 130, 390, 900, 1100, 1275], houseCost: 200, color: '#10b981' },
+                    { id: 32, name: 'North Carolina Ave', type: 'property', price: 300, rent: [26, 130, 390, 900, 1100, 1275], houseCost: 200, color: '#10b981' },
+                    { id: 33, name: 'Community Chest', type: 'chest', price: 0, color: '#38bdf8' },
+                    { id: 34, name: 'Pennsylvania Ave', type: 'property', price: 320, rent: [28, 150, 450, 1000, 1200, 1400], houseCost: 200, color: '#10b981' },
+                    { id: 35, name: 'Short Line', type: 'railroad', price: 200, rent: [25, 50, 100, 200], color: '#64748b' },
+                    { id: 36, name: 'Chance', type: 'chance', price: 0, color: '#f59e0b' },
+                    { id: 37, name: 'Park Place', type: 'property', price: 350, rent: [35, 175, 500, 1100, 1300, 1500], houseCost: 200, color: '#6366f1' },
+                    { id: 38, name: 'Luxury Tax', type: 'tax', amount: 100, price: 100, color: '#f43f5e' },
+                    { id: 39, name: 'Boardwalk', type: 'property', price: 400, rent: [50, 200, 600, 1400, 1700, 2000], houseCost: 200, color: '#6366f1' }
+                ],
+                chance: [
+                    { text: 'Advance to GO and collect $200!', action: 'move', target: 0 },
+                    { text: 'Advance to Boardwalk!', action: 'move', target: 39 },
+                    { text: 'Advance to Illinois Ave!', action: 'move', target: 24 },
+                    { text: 'Bank pays you dividend of $150.', action: 'cash', amount: 150 },
+                    { text: 'Speeding fine $50.', action: 'cash', amount: -50 },
+                    { text: 'Go directly to Jail!', action: 'jail' }
+                ],
+                chest: [
+                    { text: 'Income tax refund! Collect $100.', action: 'cash', amount: 100 },
+                    { text: 'Holiday fund matures! Collect $120.', action: 'cash', amount: 120 },
+                    { text: 'Doctor\'s fee. Pay $50.', action: 'cash', amount: -50 },
+                    { text: 'Bank error in your favor! Collect $200.', action: 'cash', amount: 200 },
+                    { text: 'Hospital fees. Pay $75.', action: 'cash', amount: -75 }
+                ]
+            }
+        };
+
+        let BOARD_TILES = MAP_THEMES.malaysia.tiles;
+        let CHANCE_CARDS = MAP_THEMES.malaysia.chance;
+        let CHEST_CARDS = MAP_THEMES.malaysia.chest;
+
+        // =====================================================================
+        // CORE GAME STATE
+        // =====================================================================
+        let db = null;
+        let currentUser = null;
+        let appId = 'polytycoon-v4';
+        let activeRoomId = 'LOCAL';
+        let isApplyingRemoteUpdate = false;
+        let lastSeenEmoteTimestamp = 0;
+        let selectedTileId = 0;
+        let boardViewMode = '2d';
+        let soundMuted = false;
+        let botTurnTimer = null;
+
+        const gameState = {
+            roomCode: 'LOCAL',
+            mapId: 'malaysia',
+            status: 'setup', // 'setup' | 'playing'
+            turnIndex: 0,
+            turnPhase: 'ROLL', // 'ROLL' | 'END'
+            lastDice: [1, 1, 0],
+            doublesCount: 0,
+            freeParkingPot: 0,
+            rules: {
+                startingCash: 1500,
+                goSalary: 200,
+                doubleOnGo: true,
+                freeParkingJackpot: true
+            },
+            lastEmote: null,
+            properties: {},
+            players: [
+                { id: 'p1', name: 'TycoonAlex', color: '#38bdf8', token: 'hat', cash: 1500, position: 0, inJail: false, jailTurns: 0, isBot: false, ready: true, bankrupt: false },
+                { id: 'bot_1', name: 'CyberBot AI', color: '#f43f5e', token: 'rocket', cash: 1500, position: 0, inJail: false, jailTurns: 0, isBot: true, ready: true, bankrupt: false }
+            ],
+            logs: [
+                { time: 'Now', text: 'Welcome to PolyTycoon! Configure your match or start rolling.', type: 'system' }
+            ],
+            stateVersion: 0
+        };
+
+        function getCurrentPlayer() {
+            if (!gameState.players.length) return null;
+            return gameState.players[gameState.turnIndex % gameState.players.length] || gameState.players[0];
+        }
+
+        // =====================================================================
+        // SOUND SYNTHESIZER (WEB AUDIO API)
+        // =====================================================================
+        let audioCtx = null;
+        function playSoundEffect(type) {
+            if (soundMuted) return;
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const now = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                if (type === 'buy') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(523.25, now);
+                    osc.frequency.setValueAtTime(659.25, now + 0.08);
+                    osc.frequency.setValueAtTime(783.99, now + 0.16);
+                    gain.gain.setValueAtTime(0.14, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+                    osc.start(now);
+                    osc.stop(now + 0.35);
+                } else if (type === 'roll') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(280, now);
+                    osc.frequency.exponentialRampToValueAtTime(620, now + 0.14);
+                    gain.gain.setValueAtTime(0.12, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+                    osc.start(now);
+                    osc.stop(now + 0.16);
+                } else if (type === 'jail' || type === 'tax') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(220, now);
+                    osc.frequency.setValueAtTime(165, now + 0.15);
+                    gain.gain.setValueAtTime(0.12, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+                    osc.start(now);
+                    osc.stop(now + 0.35);
+                } else {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(440, now);
+                    gain.gain.setValueAtTime(0.08, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+                    osc.start(now);
+                    osc.stop(now + 0.09);
+                }
+            } catch (e) {}
+        }
+
+        function toggleSoundMute() {
+            soundMuted = !soundMuted;
+            const btn = document.getElementById('btn-sound-toggle');
+            if (btn) {
+                btn.innerHTML = soundMuted
+                    ? '<i class="fa-solid fa-volume-xmark text-xs text-rose-400"></i>'
+                    : '<i class="fa-solid fa-volume-high text-xs"></i>';
+            }
+        }
+
         // =====================================================================
         // MULTIPLAYER NETWORKING — serverless, works from GitHub Pages (HTTPS)
         //   1. MQTT over WSS on two public brokers in parallel (primary relay, firewall-proof)
@@ -1134,7 +1940,49 @@
                 if (isRoomHost) persistHostSnapshot();
             }, NET_STATE_COALESCE_MS);
         }
-<!-- ... existing code ... -->
+
+        async function syncStateToCloud() {
+            if (isApplyingRemoteUpdate) return;
+            if (isOnlineRoom()) {
+                broadcastToPeers(getSerializedRoomPayload());
+            }
+            renderAllUI();
+            if (gameState.status === 'setup') {
+                renderStartMenuUI();
+            }
+        }
+
+        function subscribeToCloudRoom(code) {
+            // Optional cloud hook stub for Firebase environments
+            return code;
+        }
+
+        async function initFirebaseConnection() {
+            const idEl = document.getElementById('user-id-display');
+            if (idEl) idEl.textContent = `ID: ${myClientUniqueId}`;
+        }
+
+        function getShareableInviteUrl() {
+            try {
+                const url = new URL(window.location.href);
+                url.searchParams.delete('seat');
+                if (gameState.roomCode && gameState.roomCode !== 'LOCAL') {
+                    url.searchParams.set('room', gameState.roomCode);
+                }
+                url.searchParams.set('map', gameState.mapId || 'malaysia');
+                return url.toString();
+            } catch (e) {
+                return window.location.href;
+            }
+        }
+
+        function copyInviteLink() {
+            const link = getShareableInviteUrl();
+            const shareInput = document.getElementById('share-url-input');
+            if (shareInput) shareInput.value = link;
+            copyTextSafe(link, `📋 Invite Link copied! (${gameState.roomCode})`);
+        }
+
         function generateRoomCode(length = 4) {
             const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // 32 chars, so a byte modulo stays unbiased
             const bytes = new Uint8Array(length);
@@ -1315,7 +2163,10 @@
             renderStartMenuUI();
             renderAllUI();
         };
-<!-- ... existing code ... -->
+
+        // =====================================================================
+        // LOBBY & PROFILE MANAGEMENT
+        // =====================================================================
         let hasMatchStartedOnce = false;
 
         function getMyLobbyPlayer() {
@@ -1334,7 +2185,26 @@
         }
 
         window.setStartMenuMode = async function(mode) {
-<!-- ... existing code ... -->
+            startMenuMode = mode === 'multiplayer' ? 'multiplayer' : 'local';
+            if (startMenuMode === 'local' && isOnlineRoom()) {
+                teardownAllTransports();
+                gameState.roomCode = 'LOCAL';
+                activeRoomId = 'LOCAL';
+                isRoomHost = true;
+                myLocalSeatId = gameState.players[0]?.id || 'p1';
+                const headerCode = document.getElementById('header-room-code');
+                if (headerCode) headerCode.textContent = 'LOCAL';
+                const badge = document.getElementById('connection-badge');
+                if (badge) {
+                    badge.textContent = 'Local';
+                    badge.className = 'text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+                }
+                updateBrowserUrlParams();
+            }
+            renderStartMenuUI();
+            renderAllUI();
+        };
+
         // Profile changes: guests send a small PLAYER_PROFILE_UPDATE, the host re-syncs the room.
         // Name typing is debounced so every keystroke doesn't hit the network.
         function pushMyProfileUpdate(me, debounce) {
@@ -1398,7 +2268,1097 @@
 
             pushMyProfileUpdate(me, false);
         };
-<!-- ... existing code ... -->
+
+        function addLobbySeat(isBot) {
+            if (isOnlineRoom() && !isRoomHost) {
+                showBannerToast("Only the Room Host can add or remove seats!");
+                return;
+            }
+            if (gameState.players.length >= NET_MAX_SEATS) {
+                showBannerToast(`Max ${NET_MAX_SEATS} players reached!`);
+                return;
+            }
+            const idx = gameState.players.length;
+            const tokens = Object.keys(TOKEN_ICONS);
+            const id = isBot ? `bot_${Date.now().toString(36).slice(-4)}` : `p_${idx + 1}_${Date.now().toString(36).slice(-3)}`;
+            gameState.players.push({
+                id,
+                name: isBot ? `Bot_${idx + 1}` : `Player ${idx + 1}`,
+                color: PLAYER_COLORS[idx % PLAYER_COLORS.length],
+                token: tokens[idx % tokens.length],
+                cash: Number(gameState.rules.startingCash) || 1500,
+                position: 0,
+                inJail: false,
+                jailTurns: 0,
+                isBot: Boolean(isBot),
+                ready: true,
+                bankrupt: false
+            });
+            playSoundEffect('step');
+            syncStateToCloud();
+        }
+
+        function removeLobbySeat(seatId) {
+            if (isOnlineRoom() && !isRoomHost) return;
+            if (gameState.players.length <= 2) {
+                showBannerToast("Need at least 2 seats for a match!");
+                return;
+            }
+            gameState.players = gameState.players.filter(p => p.id !== seatId);
+            if (gameState.turnIndex >= gameState.players.length) gameState.turnIndex = 0;
+            syncStateToCloud();
+        }
+
+        function updateHouseRule(key, val) {
+            if (isOnlineRoom() && !isRoomHost) {
+                showBannerToast("Only the Host can change house rules!");
+                return;
+            }
+            gameState.rules[key] = val;
+            if (key === 'startingCash' && gameState.status === 'setup') {
+                gameState.players.forEach(p => { p.cash = Number(val) || 1500; });
+            }
+            syncStateToCloud();
+        }
+
+        function startMatchFromLobby() {
+            if (isOnlineRoom() && !isRoomHost) {
+                showBannerToast("Waiting for the Room Host to start the match!");
+                return;
+            }
+            if (gameState.players.length < 2) {
+                addLobbySeat(true);
+            }
+            gameState.status = 'playing';
+            gameState.turnIndex = 0;
+            gameState.turnPhase = 'ROLL';
+            gameState.doublesCount = 0;
+            gameState.freeParkingPot = 0;
+            gameState.properties = {};
+            const startCash = Number(gameState.rules.startingCash) || 1500;
+            gameState.players.forEach(p => {
+                p.cash = startCash;
+                p.position = 0;
+                p.inJail = false;
+                p.jailTurns = 0;
+                p.bankrupt = false;
+            });
+            hasMatchStartedOnce = true;
+            closeStartMenuModal();
+            addGameLog(`🚀 New match started on ${MAP_THEMES[gameState.mapId].name}!`, 'system');
+            playSoundEffect('buy');
+            syncStateToCloud();
+            checkAndTriggerBotTurn();
+        }
+
+        function openStartMenuModal() {
+            const modal = document.getElementById('start-menu-modal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+                renderStartMenuUI();
+            }
+        }
+
+        function closeStartMenuModal() {
+            const modal = document.getElementById('start-menu-modal');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+        }
+
+        function openShareModal() {
+            const modal = document.getElementById('share-room-modal');
+            const codeEl = document.getElementById('share-modal-room-code');
+            const urlEl = document.getElementById('share-url-input');
+            if (codeEl) codeEl.textContent = gameState.roomCode || 'LOCAL';
+            if (urlEl) urlEl.value = getShareableInviteUrl();
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            }
+            updateP2PConnectionBadges();
+        }
+
+        function closeShareModal() {
+            const modal = document.getElementById('share-room-modal');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+        }
+
+        function renderStartMenuUI() {
+            const tabLocal = document.getElementById('tab-mode-local');
+            const tabMulti = document.getElementById('tab-mode-multiplayer');
+            const mpBox = document.getElementById('multiplayer-room-box');
+            const isMP = startMenuMode === 'multiplayer' || isOnlineRoom();
+
+            if (tabLocal && tabMulti) {
+                tabLocal.className = `py-2 px-3 rounded-xl font-bold text-xs sm:text-sm transition flex items-center justify-center gap-2 ${!isMP ? 'bg-emerald-600 text-white' : 'text-slate-300 hover:text-white'}`;
+                tabMulti.className = `py-2 px-3 rounded-xl font-bold text-xs sm:text-sm transition flex items-center justify-center gap-2 ${isMP ? 'bg-indigo-600 text-white' : 'text-slate-300 hover:text-white'}`;
+            }
+            if (mpBox) {
+                mpBox.classList.toggle('hidden', !isMP);
+            }
+
+            const me = getMyLobbyPlayer();
+            const nameInput = document.getElementById('start-my-name-input');
+            if (nameInput && me && document.activeElement !== nameInput) {
+                nameInput.value = me.name;
+            }
+
+            const readyBtn = document.getElementById('btn-my-ready-toggle');
+            if (readyBtn && me) {
+                readyBtn.textContent = me.ready ? '✅ Ready' : '⏳ Not Ready';
+                readyBtn.className = me.ready
+                    ? 'px-3 py-1 rounded-lg text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                    : 'px-3 py-1 rounded-lg text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40';
+            }
+
+            // Token picker
+            const tokenPicker = document.getElementById('my-token-picker');
+            if (tokenPicker && me) {
+                tokenPicker.innerHTML = Object.entries(TOKEN_ICONS).map(([key, icon]) => `
+                    <button onclick="updateMyLobbyProfile('token', '${key}')" class="w-7 h-7 rounded-lg flex items-center justify-center text-xs transition ${me.token === key ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'}">
+                        <i class="fa-solid ${icon}"></i>
+                    </button>
+                `).join('');
+            }
+
+            // Color picker
+            const colorPicker = document.getElementById('my-color-picker');
+            if (colorPicker && me) {
+                colorPicker.innerHTML = PLAYER_COLORS.map(col => `
+                    <button onclick="updateMyLobbyProfile('color', '${col}')" style="background:${col}" class="w-5 h-5 rounded-full transition ${me.color === col ? 'ring-2 ring-white scale-110' : 'opacity-65 hover:opacity-100'}"></button>
+                `).join('');
+            }
+
+            // Seats list
+            const seatsList = document.getElementById('start-lobby-seats-list');
+            if (seatsList) {
+                seatsList.innerHTML = gameState.players.map((p, i) => `
+                    <div class="flex items-center justify-between bg-slate-900/90 border border-slate-800 px-3 py-2 rounded-xl">
+                        <div class="flex items-center gap-2.5">
+                            <span style="background:${p.color}" class="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs">
+                                <i class="fa-solid ${TOKEN_ICONS[p.token] || 'fa-hat-cowboy'}"></i>
+                            </span>
+                            <div>
+                                <div class="text-xs font-bold text-white flex items-center gap-1.5">
+                                    <span>${p.name}</span>
+                                    ${p.id === myLocalSeatId ? '<span class="text-[10px] px-1.5 py-0.2 rounded bg-sky-500/20 text-sky-300">YOU</span>' : ''}
+                                    ${i === 0 && isOnlineRoom() ? '<span class="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300">HOST</span>' : ''}
+                                    ${p.isBot ? '<span class="text-[10px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300">AI BOT</span>' : ''}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-[10px] font-bold ${p.ready ? 'text-emerald-400' : 'text-amber-400'}">${p.ready ? 'Ready' : 'Waiting'}</span>
+                            ${(!isOnlineRoom() || isRoomHost) && gameState.players.length > 2 ? `
+                                <button onclick="removeLobbySeat('${p.id}')" class="text-slate-500 hover:text-rose-400 text-xs px-1">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            const closeBtn = document.getElementById('btn-close-start-modal');
+            if (closeBtn) closeBtn.classList.toggle('hidden', !hasMatchStartedOnce);
+
+            const launchBtn = document.getElementById('btn-launch-match');
+            if (launchBtn) {
+                if (isOnlineRoom() && !isRoomHost) {
+                    launchBtn.textContent = '⏳ Waiting for Host to Start...';
+                    launchBtn.disabled = true;
+                    launchBtn.classList.add('opacity-50');
+                } else {
+                    launchBtn.textContent = '🚀 Start Match';
+                    launchBtn.disabled = false;
+                    launchBtn.classList.remove('opacity-50');
+                }
+            }
+        }
+
+        // =====================================================================
+        // BOARD GEOMETRY & 2D DOM GENERATION
+        // =====================================================================
+        function getGridPositionForTile(index) {
+            // 11x11 CSS Grid (1-indexed: rows 1..11, cols 1..11)
+            // Bottom row: 0 (bottom-right, 11,11) -> 10 (bottom-left, 11,1)
+            if (index >= 0 && index <= 10) {
+                return { row: 11, col: 11 - index };
+            }
+            // Left column: 10 (11,1) -> 20 (1,1)
+            if (index > 10 && index <= 20) {
+                return { row: 11 - (index - 10), col: 1 };
+            }
+            // Top row: 20 (1,1) -> 30 (1,11)
+            if (index > 20 && index <= 30) {
+                return { row: 1, col: 1 + (index - 20) };
+            }
+            // Right column: 30 (1,11) -> 39 (10,11)
+            return { row: 1 + (index - 30), col: 11 };
+        }
+
+        function applyMapThemeArrays(mapId) {
+            if (!MAP_THEMES[mapId]) return;
+            gameState.mapId = mapId;
+            BOARD_TILES = MAP_THEMES[mapId].tiles;
+            CHANCE_CARDS = MAP_THEMES[mapId].chance;
+            CHEST_CARDS = MAP_THEMES[mapId].chest;
+
+            const headerSel = document.getElementById('header-map-select');
+            if (headerSel) headerSel.value = mapId;
+            const ruleSel = document.getElementById('rule-map-select');
+            if (ruleSel) ruleSel.value = mapId;
+            const centerBadge = document.getElementById('center-map-badge');
+            if (centerBadge) centerBadge.textContent = MAP_THEMES[mapId].name;
+
+            build2DBoardDOM();
+            rebuild3DBoardScene();
+            renderAllUI();
+        }
+
+        function changeMapTheme(mapId) {
+            if (isOnlineRoom() && !isRoomHost) {
+                showBannerToast("Only the Room Host can switch map themes!");
+                return;
+            }
+            applyMapThemeArrays(mapId);
+            updateBrowserUrlParams();
+            syncStateToCloud();
+        }
+
+        function build2DBoardDOM() {
+            const grid = document.getElementById('board-2d-grid');
+            if (!grid) return;
+            const hub = document.getElementById('board-center-hub');
+            grid.innerHTML = '';
+            if (hub) grid.appendChild(hub);
+
+            BOARD_TILES.forEach((tile, idx) => {
+                const pos = getGridPositionForTile(idx);
+                const cell = document.createElement('div');
+                const isCorner = idx % 10 === 0;
+                cell.id = `tile-2d-${idx}`;
+                cell.className = `board-tile ${isCorner ? 'corner-tile' : ''} ${selectedTileId === idx ? 'selected-tile' : ''}`;
+                cell.style.gridRow = pos.row;
+                cell.style.gridColumn = pos.col;
+                cell.onclick = () => selectTileInspector(idx);
+
+                let iconHtml = '';
+                if (tile.type === 'go') iconHtml = '<i class="fa-solid fa-flag-checkered text-emerald-400 text-sm"></i>';
+                else if (tile.type === 'jail') iconHtml = '<i class="fa-solid fa-building-lock text-amber-400 text-sm"></i>';
+                else if (tile.type === 'parking') iconHtml = '<i class="fa-solid fa-square-parking text-emerald-400 text-sm"></i>';
+                else if (tile.type === 'gotojail') iconHtml = '<i class="fa-solid fa-handcuffs text-rose-400 text-sm"></i>';
+                else if (tile.type === 'chance') iconHtml = '<i class="fa-solid fa-question text-amber-400 text-xs"></i>';
+                else if (tile.type === 'chest') iconHtml = '<i class="fa-solid fa-box-open text-sky-400 text-xs"></i>';
+                else if (tile.type === 'railroad') iconHtml = '<i class="fa-solid fa-train-subway text-slate-300 text-xs"></i>';
+                else if (tile.type === 'utility') iconHtml = '<i class="fa-solid fa-bolt text-yellow-400 text-xs"></i>';
+                else if (tile.type === 'tax') iconHtml = '<i class="fa-solid fa-Scale-balanced text-rose-400 text-xs"></i>';
+
+                cell.innerHTML = `
+                    ${tile.type === 'property' ? `<div id="tile-houses-${idx}" class="tile-color-bar" style="background:${tile.color}"></div>` : `<div class="pt-1">${iconHtml}</div>`}
+                    <div class="tile-name">${tile.name}</div>
+                    ${tile.price > 0 ? `<div class="tile-price">$${tile.price}</div>` : `<div class="tile-price">&nbsp;</div>`}
+                    <div id="tile-tokens-${idx}" class="tile-tokens-wrap"></div>
+                    <div id="tile-owner-${idx}" class="tile-owner-strip"></div>
+                `;
+                grid.appendChild(cell);
+            });
+        }
+
+        function updateBoardDimensions() {
+            const stage = document.getElementById('board-stage-area');
+            const grid = document.getElementById('board-2d-grid');
+            if (!stage || !grid) return;
+            const pad = 16;
+            const size = Math.max(290, Math.min(stage.clientWidth - pad, stage.clientHeight - pad, 760));
+            grid.style.width = `${size}px`;
+            grid.style.height = `${size}px`;
+
+            if (threeRenderer && threeCamera) {
+                const container = document.getElementById('three-canvas-container');
+                if (container && container.clientWidth > 0 && container.clientHeight > 0) {
+                    threeCamera.aspect = container.clientWidth / container.clientHeight;
+                    threeCamera.updateProjectionMatrix();
+                    threeRenderer.setSize(container.clientWidth, container.clientHeight);
+                }
+            }
+        }
+
+        // =====================================================================
+        // 3D BOARD ENGINE (THREE.JS)
+        // =====================================================================
+        let threeScene = null;
+        let threeCamera = null;
+        let threeRenderer = null;
+        let threeTileMeshes = [];
+        let threeTokenMeshes = {};
+        let threeHouseGroup = null;
+        let cameraOrbit = { theta: Math.PI / 4, phi: 0.88, radius: 18, isDragging: false, lastX: 0, lastY: 0 };
+
+        function get3DCoordsForTile(index) {
+            const pos = getGridPositionForTile(index);
+            const x = (pos.col - 6) * 1.25;
+            const z = (pos.row - 6) * 1.25;
+            return { x, z };
+        }
+
+        function initThreeSceneIfNeeded() {
+            if (threeRenderer) return;
+            const container = document.getElementById('three-canvas-container');
+            if (!container || typeof THREE === 'undefined') return;
+
+            threeScene = new THREE.Scene();
+            threeScene.background = new THREE.Color(0x020617);
+
+            threeCamera = new THREE.PerspectiveCamera(45, (container.clientWidth || 600) / (container.clientHeight || 600), 0.1, 100);
+            updateThreeCameraPosition();
+
+            threeRenderer = new THREE.WebGLRenderer({ antialias: true });
+            threeRenderer.setSize(container.clientWidth || 600, container.clientHeight || 600);
+            threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            container.innerHTML = '';
+            container.appendChild(threeRenderer.domElement);
+
+            const ambient = new THREE.AmbientLight(0xffffff, 0.78);
+            threeScene.add(ambient);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.75);
+            dirLight.position.set(12, 22, 14);
+            threeScene.add(dirLight);
+
+            threeHouseGroup = new THREE.Group();
+            threeScene.add(threeHouseGroup);
+
+            // Pointer Orbit Controls
+            const dom = threeRenderer.domElement;
+            dom.addEventListener('pointerdown', (e) => {
+                cameraOrbit.isDragging = true;
+                cameraOrbit.lastX = e.clientX;
+                cameraOrbit.lastY = e.clientY;
+            });
+            window.addEventListener('pointermove', (e) => {
+                if (!cameraOrbit.isDragging) return;
+                const dx = e.clientX - cameraOrbit.lastX;
+                const dy = e.clientY - cameraOrbit.lastY;
+                cameraOrbit.lastX = e.clientX;
+                cameraOrbit.lastY = e.clientY;
+                cameraOrbit.theta -= dx * 0.008;
+                cameraOrbit.phi = Math.max(0.35, Math.min(1.35, cameraOrbit.phi - dy * 0.006));
+                updateThreeCameraPosition();
+            });
+            window.addEventListener('pointerup', () => { cameraOrbit.isDragging = false; });
+            dom.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                cameraOrbit.radius = Math.max(10, Math.min(28, cameraOrbit.radius + e.deltaY * 0.01));
+                updateThreeCameraPosition();
+            }, { passive: false });
+
+            rebuild3DBoardScene();
+        }
+
+        function updateThreeCameraPosition() {
+            if (!threeCamera) return;
+            threeCamera.position.x = cameraOrbit.radius * Math.sin(cameraOrbit.phi) * Math.cos(cameraOrbit.theta);
+            threeCamera.position.y = cameraOrbit.radius * Math.cos(cameraOrbit.phi);
+            threeCamera.position.z = cameraOrbit.radius * Math.sin(cameraOrbit.phi) * Math.sin(cameraOrbit.theta);
+            threeCamera.lookAt(0, 0, 0);
+        }
+
+        function rebuild3DBoardScene() {
+            if (!threeScene) return;
+            threeTileMeshes.forEach(m => threeScene.remove(m));
+            threeTileMeshes = [];
+
+            // Center Board Table
+            const baseGeo = new THREE.BoxGeometry(14.2, 0.35, 14.2);
+            const baseMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.7 });
+            const baseMesh = new THREE.Mesh(baseGeo, baseMat);
+            baseMesh.position.y = -0.2;
+            threeScene.add(baseMesh);
+            threeTileMeshes.push(baseMesh);
+
+            BOARD_TILES.forEach((tile, idx) => {
+                const { x, z } = get3DCoordsForTile(idx);
+                const geo = new THREE.BoxGeometry(1.16, 0.18, 1.16);
+                const mat = new THREE.MeshStandardMaterial({
+                    color: new THREE.Color(tile.color || '#334155'),
+                    roughness: 0.45,
+                    metalness: 0.15
+                });
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.position.set(x, 0, z);
+                threeScene.add(mesh);
+                threeTileMeshes.push(mesh);
+            });
+            sync3DTokensAndHouses();
+        }
+
+        function sync3DTokensAndHouses() {
+            if (!threeScene) return;
+
+            // Remove stale tokens
+            const activeIds = new Set(gameState.players.filter(p => !p.bankrupt).map(p => p.id));
+            Object.keys(threeTokenMeshes).forEach(id => {
+                if (!activeIds.has(id)) {
+                    threeScene.remove(threeTokenMeshes[id]);
+                    delete threeTokenMeshes[id];
+                }
+            });
+
+            // Create / position tokens
+            gameState.players.forEach((p, i) => {
+                if (p.bankrupt) return;
+                let mesh = threeTokenMeshes[p.id];
+                if (!mesh) {
+                    const geo = new THREE.ConeGeometry(0.24, 0.65, 20);
+                    const mat = new THREE.MeshStandardMaterial({ color: new THREE.Color(p.color), roughness: 0.25, metalness: 0.3 });
+                    mesh = new THREE.Mesh(geo, mat);
+                    threeScene.add(mesh);
+                    threeTokenMeshes[p.id] = mesh;
+                } else {
+                    mesh.material.color.set(p.color);
+                }
+                const { x, z } = get3DCoordsForTile(p.position || 0);
+                const angle = (i / Math.max(1, gameState.players.length)) * Math.PI * 2;
+                mesh.targetX = x + Math.cos(angle) * 0.22;
+                mesh.targetZ = z + Math.sin(angle) * 0.22;
+                if (mesh.position.y === 0) {
+                    mesh.position.set(mesh.targetX, 0.42, mesh.targetZ);
+                }
+            });
+
+            // Rebuild houses
+            if (threeHouseGroup) {
+                while (threeHouseGroup.children.length) {
+                    threeHouseGroup.remove(threeHouseGroup.children[0]);
+                }
+                Object.entries(gameState.properties).forEach(([tileIdx, prop]) => {
+                    if (!prop || !prop.houses) return;
+                    const { x, z } = get3DCoordsForTile(Number(tileIdx));
+                    for (let h = 0; h < prop.houses; h++) {
+                        const hGeo = new THREE.BoxGeometry(0.18, 0.22, 0.18);
+                        const hMat = new THREE.MeshStandardMaterial({ color: prop.houses === 5 ? 0xf43f5e : 0x10b981 });
+                        const hMesh = new THREE.Mesh(hGeo, hMat);
+                        hMesh.position.set(x - 0.3 + h * 0.15, 0.22, z - 0.35);
+                        threeHouseGroup.add(hMesh);
+                    }
+                });
+            }
+        }
+
+        function animateThreeLoop() {
+            requestAnimationFrame(animateThreeLoop);
+            if (boardViewMode === '3d' && threeRenderer && threeScene && threeCamera) {
+                Object.values(threeTokenMeshes).forEach(mesh => {
+                    if (typeof mesh.targetX === 'number') {
+                        mesh.position.x += (mesh.targetX - mesh.position.x) * 0.15;
+                        mesh.position.z += (mesh.targetZ - mesh.position.z) * 0.15;
+                    }
+                });
+                threeRenderer.render(threeScene, threeCamera);
+            }
+        }
+
+        function setBoardViewMode(mode) {
+            boardViewMode = mode === '3d' ? '3d' : '2d';
+            const w2d = document.getElementById('board-2d-wrapper');
+            const w3d = document.getElementById('board-3d-wrapper');
+            const b2d = document.getElementById('btn-view-2d');
+            const b3d = document.getElementById('btn-view-3d');
+
+            if (boardViewMode === '3d') {
+                w2d?.classList.add('hidden');
+                w3d?.classList.remove('hidden');
+                w3d?.classList.add('flex');
+                if (b3d) b3d.className = 'px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-600 text-white transition';
+                if (b2d) b2d.className = 'px-2.5 py-1 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition';
+                initThreeSceneIfNeeded();
+                updateBoardDimensions();
+                sync3DTokensAndHouses();
+            } else {
+                w3d?.classList.add('hidden');
+                w3d?.classList.remove('flex');
+                w2d?.classList.remove('hidden');
+                if (b2d) b2d.className = 'px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-600 text-white transition';
+                if (b3d) b3d.className = 'px-2.5 py-1 rounded-lg text-xs font-bold text-slate-400 hover:text-white transition';
+                updateBoardDimensions();
+            }
+        }
+
+        // =====================================================================
+        // GAMEPLAY LOGIC (ROLL, MOVE, RENT, BUY, BUILD, CARDS, BOT AI)
+        // =====================================================================
+        function calculateRent(tile, propState, diceSum) {
+            if (!tile || !propState || propState.mortgaged) return 0;
+            if (tile.type === 'property') {
+                const houses = propState.houses || 0;
+                return tile.rent[Math.min(houses, tile.rent.length - 1)] || 10;
+            }
+            if (tile.type === 'railroad') {
+                const ownedCount = BOARD_TILES.filter(t => t.type === 'railroad' && gameState.properties[t.id]?.owner === propState.owner).length;
+                return tile.rent[Math.max(0, ownedCount - 1)] || 25;
+            }
+            if (tile.type === 'utility') {
+                const ownedUtils = BOARD_TILES.filter(t => t.type === 'utility' && gameState.properties[t.id]?.owner === propState.owner).length;
+                return (diceSum || 7) * (ownedUtils >= 2 ? 10 : 4);
+            }
+            return 0;
+        }
+
+        function handleRollDice() {
+            if (!canLocalUserAct()) {
+                showBannerToast("Wait for your turn!");
+                return;
+            }
+            if (gameState.turnPhase !== 'ROLL') return;
+            const player = getCurrentPlayer();
+            if (!player || player.bankrupt) return;
+
+            const d1 = Math.floor(Math.random() * 6) + 1;
+            const d2 = Math.floor(Math.random() * 6) + 1;
+            const total = d1 + d2;
+            const isDoubles = d1 === d2;
+            gameState.lastDice = [d1, d2, total];
+            playSoundEffect('roll');
+
+            const box = document.getElementById('dice-visual-box');
+            if (box) {
+                box.classList.add('dice-rolling');
+                setTimeout(() => box.classList.remove('dice-rolling'), 420);
+            }
+
+            // Jail handling
+            if (player.inJail) {
+                if (isDoubles) {
+                    player.inJail = false;
+                    player.jailTurns = 0;
+                    addGameLog(`🎲 ${player.name} rolled doubles (${d1}+${d2}) and escaped Jail!`, 'event');
+                } else {
+                    player.jailTurns = (player.jailTurns || 0) + 1;
+                    if (player.jailTurns >= 3) {
+                        player.cash -= 50;
+                        player.inJail = false;
+                        player.jailTurns = 0;
+                        addGameLog(`🔑 ${player.name} paid $50 bail after 3 turns in Jail.`, 'tax');
+                    } else {
+                        addGameLog(`🔒 ${player.name} rolled ${d1}+${d2} and stays in Jail (${player.jailTurns}/3).`, 'system');
+                        gameState.turnPhase = 'END';
+                        syncStateToCloud();
+                        return;
+                    }
+                }
+            }
+
+            // Move player
+            const oldPos = player.position || 0;
+            const newPos = (oldPos + total) % BOARD_TILES.length;
+            if (oldPos + total >= BOARD_TILES.length) {
+                const bonus = (newPos === 0 && gameState.rules.doubleOnGo) ? 400 : 200;
+                player.cash += bonus;
+                addGameLog(`💵 ${player.name} passed GO and collected $${bonus}!`, 'cash');
+            }
+
+            player.position = newPos;
+            selectedTileId = newPos;
+            const landedTile = BOARD_TILES[newPos];
+            addGameLog(`🎲 ${player.name} rolled ${d1}+${d2}=${total} and landed on ${landedTile.name}.`, 'move');
+
+            resolveTileLanding(player, landedTile, total);
+
+            gameState.turnPhase = 'END';
+            syncStateToCloud();
+        }
+
+        function resolveTileLanding(player, tile, diceSum) {
+            if (!tile) return;
+
+            if (tile.type === 'property' || tile.type === 'railroad' || tile.type === 'utility') {
+                const prop = gameState.properties[tile.id];
+                if (prop && prop.owner && prop.owner !== player.id) {
+                    const ownerPlayer = gameState.players.find(p => p.id === prop.owner);
+                    if (ownerPlayer && !ownerPlayer.bankrupt && !ownerPlayer.inJail) {
+                        const rent = calculateRent(tile, prop, diceSum);
+                        player.cash -= rent;
+                        ownerPlayer.cash += rent;
+                        playSoundEffect('tax');
+                        addGameLog(`💸 ${player.name} paid $${rent} rent to ${ownerPlayer.name} for ${tile.name}!`, 'tax');
+                        showBannerToast(`💸 ${player.name} paid $${rent} rent to ${ownerPlayer.name}`);
+                    }
+                }
+            } else if (tile.type === 'tax') {
+                const tax = tile.amount || 100;
+                player.cash -= tax;
+                if (gameState.rules.freeParkingJackpot) {
+                    gameState.freeParkingPot = (gameState.freeParkingPot || 0) + tax;
+                }
+                playSoundEffect('tax');
+                addGameLog(`🏛️ ${player.name} paid $${tax} in ${tile.name}.`, 'tax');
+            } else if (tile.type === 'parking') {
+                if (gameState.rules.freeParkingJackpot && gameState.freeParkingPot > 0) {
+                    const jackpot = gameState.freeParkingPot;
+                    player.cash += jackpot;
+                    gameState.freeParkingPot = 0;
+                    playSoundEffect('buy');
+                    addGameLog(`🎉 ${player.name} won the $${jackpot} Free Parking Jackpot!`, 'cash');
+                    showBannerToast(`🎉 ${player.name} claimed $${jackpot} Jackpot!`);
+                }
+            } else if (tile.type === 'gotojail') {
+                player.position = 10;
+                player.inJail = true;
+                player.jailTurns = 0;
+                playSoundEffect('jail');
+                addGameLog(`🚓 ${player.name} was sent directly to Jail!`, 'tax');
+                showBannerToast(`🚓 ${player.name} went to Jail!`);
+            } else if (tile.type === 'chance' || tile.type === 'chest') {
+                const deck = tile.type === 'chance' ? CHANCE_CARDS : CHEST_CARDS;
+                const card = deck[Math.floor(Math.random() * deck.length)];
+                if (card) {
+                    addGameLog(`🃏 ${tile.name}: "${card.text}"`, 'event');
+                    showBannerToast(`🃏 ${card.text}`);
+                    if (card.action === 'cash') {
+                        player.cash += card.amount;
+                        if (card.amount < 0 && gameState.rules.freeParkingJackpot) {
+                            gameState.freeParkingPot += Math.abs(card.amount);
+                        }
+                    } else if (card.action === 'move') {
+                        if (card.target < player.position) player.cash += 200;
+                        player.position = card.target;
+                        selectedTileId = card.target;
+                        resolveTileLanding(player, BOARD_TILES[card.target], diceSum);
+                    } else if (card.action === 'jail') {
+                        player.position = 10;
+                        player.inJail = true;
+                        player.jailTurns = 0;
+                    }
+                }
+            }
+
+            // Check bankruptcy
+            if (player.cash < 0) {
+                player.bankrupt = true;
+                Object.keys(gameState.properties).forEach(tid => {
+                    if (gameState.properties[tid]?.owner === player.id) {
+                        delete gameState.properties[tid];
+                    }
+                });
+                addGameLog(`💥 ${player.name} went BANKRUPT! All their properties returned to the market.`, 'tax');
+                showBannerToast(`💥 ${player.name} went bankrupt!`);
+            }
+        }
+
+        function handleBuyProperty() {
+            if (!canLocalUserAct()) return;
+            const player = getCurrentPlayer();
+            if (!player) return;
+            const tile = BOARD_TILES[player.position];
+            if (!tile || !['property', 'railroad', 'utility'].includes(tile.type)) return;
+            if (gameState.properties[tile.id]?.owner) return;
+            if (player.cash < tile.price) {
+                showBannerToast("Not enough cash to buy this property!");
+                return;
+            }
+
+            player.cash -= tile.price;
+            gameState.properties[tile.id] = { owner: player.id, houses: 0, mortgaged: false };
+            playSoundEffect('buy');
+            addGameLog(`🏠 ${player.name} purchased ${tile.name} for $${tile.price}!`, 'buy');
+            showBannerToast(`🏠 ${player.name} bought ${tile.name}!`);
+            syncStateToCloud();
+        }
+
+        function handleUpgradeCurrentTile(explicitTileId) {
+            if (!canLocalUserAct()) return;
+            const player = getCurrentPlayer();
+            if (!player) return;
+            const tid = typeof explicitTileId === 'number' ? explicitTileId : player.position;
+            const tile = BOARD_TILES[tid];
+            const prop = gameState.properties[tid];
+            if (!tile || tile.type !== 'property' || !prop || prop.owner !== player.id) return;
+            if (prop.houses >= 5) {
+                showBannerToast("Maximum Hotel level reached!");
+                return;
+            }
+            const cost = tile.houseCost || 100;
+            if (player.cash < cost) {
+                showBannerToast(`Need $${cost} to build!`);
+                return;
+            }
+            player.cash -= cost;
+            prop.houses = (prop.houses || 0) + 1;
+            playSoundEffect('buy');
+            const label = prop.houses === 5 ? 'a Hotel 🏨' : `House #${prop.houses} 🏠`;
+            addGameLog(`🔨 ${player.name} built ${label} on ${tile.name} ($${cost}).`, 'buy');
+            syncStateToCloud();
+        }
+
+        function handlePayJailBail() {
+            if (!canLocalUserAct()) return;
+            const player = getCurrentPlayer();
+            if (!player || !player.inJail || player.cash < 50) return;
+            player.cash -= 50;
+            player.inJail = false;
+            player.jailTurns = 0;
+            playSoundEffect('buy');
+            addGameLog(`🔑 ${player.name} paid $50 fine and is released from Jail!`, 'event');
+            syncStateToCloud();
+        }
+
+        function handleEndTurn() {
+            if (!canLocalUserAct()) return;
+            const alivePlayers = gameState.players.filter(p => !p.bankrupt);
+            if (alivePlayers.length <= 1 && gameState.players.length > 1) {
+                const winner = alivePlayers[0];
+                if (winner) {
+                    showBannerToast(`🏆 ${winner.name} wins the PolyTycoon Empire!`);
+                    addGameLog(`🏆 ${winner.name} won the match!`, 'system');
+                }
+                return;
+            }
+
+            let nextIdx = (gameState.turnIndex + 1) % gameState.players.length;
+            for (let i = 0; i < gameState.players.length; i++) {
+                if (!gameState.players[nextIdx].bankrupt) break;
+                nextIdx = (nextIdx + 1) % gameState.players.length;
+            }
+
+            gameState.turnIndex = nextIdx;
+            gameState.turnPhase = 'ROLL';
+            const nextPlayer = getCurrentPlayer();
+            if (nextPlayer) {
+                selectedTileId = nextPlayer.position || 0;
+            }
+            playSoundEffect('step');
+            syncStateToCloud();
+            checkAndTriggerBotTurn();
+        }
+
+        function checkAndTriggerBotTurn() {
+            if (!canRunBotsHere()) return;
+            if (gameState.status !== 'playing') return;
+            const current = getCurrentPlayer();
+            if (!current || !current.isBot || current.bankrupt) return;
+
+            if (botTurnTimer) clearTimeout(botTurnTimer);
+            botTurnTimer = setTimeout(() => {
+                if (gameState.status !== 'playing') return;
+                const bot = getCurrentPlayer();
+                if (!bot || !bot.isBot) return;
+
+                if (gameState.turnPhase === 'ROLL') {
+                    if (bot.inJail && bot.cash >= 250) {
+                        handlePayJailBail();
+                    }
+                    handleRollDice();
+                    setTimeout(() => {
+                        const tile = BOARD_TILES[bot.position];
+                        const prop = tile ? gameState.properties[tile.id] : null;
+                        if (tile && ['property', 'railroad', 'utility'].includes(tile.type) && !prop && bot.cash >= tile.price + 100) {
+                            handleBuyProperty();
+                        } else if (tile && tile.type === 'property' && prop && prop.owner === bot.id && prop.houses < 5 && bot.cash >= (tile.houseCost || 100) + 250) {
+                            handleUpgradeCurrentTile(tile.id);
+                        }
+                        setTimeout(() => {
+                            if (getCurrentPlayer()?.id === bot.id && gameState.turnPhase === 'END') {
+                                handleEndTurn();
+                            }
+                        }, 650);
+                    }, 700);
+                } else {
+                    handleEndTurn();
+                }
+            }, 850);
+        }
+
+        // =====================================================================
+        // EMOTES, LOGS, TOASTS & UI RENDERING
+        // =====================================================================
+        const PREDEFINED_EMOTES = ['🎲', '💸', '🔥', '😂', '👑', '🤝', '🚀', '😱'];
+
+        function renderPredefinedEmotes() {
+            const bar = document.getElementById('emote-bar-container');
+            if (!bar) return;
+            bar.innerHTML = PREDEFINED_EMOTES.map(emoji => `
+                <button onclick="sendQuickEmote('${emoji}')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg hover:bg-slate-800 flex items-center justify-center text-sm sm:text-base transition transform hover:scale-110">
+                    ${emoji}
+                </button>
+            `).join('');
+        }
+
+        function sendQuickEmote(emoji) {
+            const me = getMyLobbyPlayer() || getCurrentPlayer();
+            const emoteObj = {
+                emoji,
+                sender: me ? me.name : 'Tycoon',
+                color: me ? me.color : '#10b981',
+                timestamp: Date.now()
+            };
+            lastSeenEmoteTimestamp = emoteObj.timestamp;
+            gameState.lastEmote = emoteObj;
+            showFloatingEmotePopup(emoteObj);
+            syncStateToCloud();
+        }
+
+        function showFloatingEmotePopup(emote) {
+            const container = document.getElementById('floating-emote-container');
+            if (!container || !emote) return;
+            const el = document.createElement('div');
+            el.className = 'floating-emote-anim bg-slate-900/95 border border-slate-700 px-4 py-2 rounded-2xl shadow-2xl flex items-center gap-2';
+            el.innerHTML = `
+                <span class="text-2xl">${emote.emoji}</span>
+                <span class="text-xs font-extrabold" style="color:${emote.color || '#fff'}">${netCleanText(emote.sender)}</span>
+            `;
+            container.appendChild(el);
+            setTimeout(() => el.remove(), 2600);
+        }
+
+        let toastTimeout = null;
+        function showBannerToast(msg) {
+            const toast = document.getElementById('banner-toast');
+            const text = document.getElementById('banner-toast-text');
+            if (!toast || !text) return;
+            text.textContent = msg;
+            toast.classList.remove('opacity-0', '-translate-y-2');
+            toast.classList.add('opacity-100', 'translate-y-0');
+            if (toastTimeout) clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                toast.classList.add('opacity-0', '-translate-y-2');
+                toast.classList.remove('opacity-100', 'translate-y-0');
+            }, 3200);
+        }
+
+        function addGameLog(text, type = 'system') {
+            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            gameState.logs.push({ time, text, type });
+            if (gameState.logs.length > 50) gameState.logs.shift();
+        }
+
+        function clearLocalLogs() {
+            gameState.logs = [];
+            renderAllUI();
+        }
+
+        function selectTileInspector(tileId) {
+            selectedTileId = tileId;
+            document.querySelectorAll('.board-tile').forEach(el => el.classList.remove('selected-tile'));
+            const cell = document.getElementById(`tile-2d-${tileId}`);
+            if (cell) cell.classList.add('selected-tile');
+            renderTileInspector();
+        }
+
+        function renderTileInspector() {
+            const panel = document.getElementById('tile-inspector-panel');
+            if (!panel) return;
+            const tile = BOARD_TILES[selectedTileId] || BOARD_TILES[0];
+            const prop = gameState.properties[tile.id];
+            const owner = prop?.owner ? gameState.players.find(p => p.id === prop.owner) : null;
+            const current = getCurrentPlayer();
+            const canBuildHere = canLocalUserAct() && current && prop?.owner === current.id && tile.type === 'property' && (prop.houses || 0) < 5 && current.cash >= (tile.houseCost || 100);
+
+            panel.innerHTML = `
+                <div class="rounded-xl p-2.5 text-white font-extrabold text-sm flex items-center justify-between" style="background:${tile.color || '#334155'}">
+                    <span class="truncate">${tile.name}</span>
+                    ${tile.price ? `<span class="font-mono text-xs bg-slate-950/40 px-2 py-0.5 rounded-md">$${tile.price}</span>` : ''}
+                </div>
+                <div class="text-xs text-slate-300 space-y-1.5 pt-1">
+                    <div class="flex justify-between">
+                        <span class="text-slate-400">Owner:</span>
+                        <span class="font-bold" style="color:${owner ? owner.color : '#94a3b8'}">${owner ? owner.name : 'Unowned'}</span>
+                    </div>
+                    ${tile.type === 'property' ? `
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">Base Rent:</span>
+                            <span class="font-mono font-bold text-emerald-400">$${tile.rent[0]}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">1–4 Houses:</span>
+                            <span class="font-mono text-[11px] text-slate-200">$${tile.rent[1]} /$${tile.rent[2]} / $${tile.rent[3]} /$${tile.rent[4]}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">Hotel Rent:</span>
+                            <span class="font-mono font-bold text-amber-400">$${tile.rent[5]}</span> </div> <div class="flex justify-between"> <span class="text-slate-400">Build Cost:</span> <span class="font-mono text-sky-300">$${tile.houseCost}/level</span>
+                        </div>
+                        ${canBuildHere ? `
+                            <button onclick="handleUpgradeCurrentTile(${tile.id})" class="w-full mt-2 py-1.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-extrabold text-xs transition">
+                                🔨 Build House ($${tile.houseCost})
+                            </button>
+                        ` : ''}
+                    ` : `<p class="text-[11px] text-slate-400">Special board space (${tile.type.toUpperCase()}).</p>`}
+                </div>
+            `;
+        }
+
+        function renderAllUI() {
+            const current = getCurrentPlayer();
+            const canAct = canLocalUserAct();
+
+            // Update Dice & Center Hub
+            const [d1, d2] = gameState.lastDice || [1, 1];
+            const f1 = document.getElementById('die-face-1');
+            const f2 = document.getElementById('die-face-2');
+            if (f1) f1.textContent = d1;
+            if (f2) f2.textContent = d2;
+
+            const potEl = document.getElementById('center-jackpot-amount');
+            if (potEl) potEl.textContent = gameState.freeParkingPot || 0;
+
+            const subEl = document.getElementById('center-status-subtitle');
+            if (subEl && current) {
+                subEl.textContent = `${current.name}'s Turn • ${gameState.turnPhase === 'ROLL' ? 'Roll the Dice' : 'Buy, Build, or End Turn'}`;
+            }
+
+            // Update Active Turn Banner & Buttons
+            const phaseBadge = document.getElementById('turn-phase-badge');
+            if (phaseBadge) phaseBadge.textContent = gameState.turnPhase;
+
+            const activeBanner = document.getElementById('active-player-banner');
+            if (activeBanner && current) {
+                activeBanner.innerHTML = `
+                    <div class="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold shadow" style="background:${current.color}">
+                        <i class="fa-solid ${TOKEN_ICONS[current.token] || 'fa-hat-cowboy'}"></i>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <div class="font-extrabold text-sm truncate flex items-center gap-1.5">
+                            <span>${current.name}</span>
+                            ${current.inJail ? '<span class="text-[10px] px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300">JAIL</span>' : ''}
+                        </div>
+                        <div class="text-xs text-emerald-400 font-mono font-bold">$${current.cash}</div>
+                    </div>
+                `;
+            }
+
+            const rollBtn = document.getElementById('btn-roll-dice');
+            const buyBtn = document.getElementById('btn-buy-property');
+            const buildBtn = document.getElementById('btn-build-house');
+            const bailBtn = document.getElementById('btn-pay-bail');
+            const endBtn = document.getElementById('btn-end-turn');
+
+            if (rollBtn) {
+                rollBtn.disabled = !canAct || gameState.turnPhase !== 'ROLL' || Boolean(current?.isBot);
+                rollBtn.classList.toggle('hidden', gameState.turnPhase !== 'ROLL');
+            }
+            if (endBtn) {
+                endBtn.disabled = !canAct || Boolean(current?.isBot);
+                endBtn.classList.toggle('hidden', gameState.turnPhase === 'ROLL');
+            }
+
+            const curTile = current ? BOARD_TILES[current.position] : null;
+            const curProp = curTile ? gameState.properties[curTile.id] : null;
+            const canBuy = canAct && !current?.isBot && gameState.turnPhase === 'END' && curTile && ['property', 'railroad', 'utility'].includes(curTile.type) && !curProp && current.cash >= curTile.price;
+            if (buyBtn) {
+                buyBtn.classList.toggle('hidden', !canBuy);
+                const buyLbl = document.getElementById('btn-buy-label');
+                if (buyLbl && curTile) buyLbl.textContent = `Buy ($${curTile.price})`;
+            }
+
+            const canBuild = canAct && !current?.isBot && curTile && curTile.type === 'property' && curProp?.owner === current?.id && (curProp.houses || 0) < 5 && current.cash >= (curTile.houseCost || 100);
+            if (buildBtn) {
+                buildBtn.classList.toggle('hidden', !canBuild);
+                const buildLbl = document.getElementById('btn-build-label');
+                if (buildLbl && curTile) buildLbl.textContent = `Build ($${curTile.houseCost})`;
+            }
+
+            if (bailBtn) {
+                const showBail = canAct && !current?.isBot && Boolean(current?.inJail) && current.cash >= 50;
+                bailBtn.classList.toggle('hidden', !showBail);
+            }
+
+            // Players Roster List
+            const rosterCount = document.getElementById('roster-count-label');
+            if (rosterCount) rosterCount.textContent = `${gameState.players.length} Seats`;
+
+            const rosterEl = document.getElementById('players-roster-list');
+            if (rosterEl) {
+                rosterEl.innerHTML = gameState.players.map((p, idx) => {
+                    const isTurn = idx === (gameState.turnIndex % gameState.players.length);
+                    const propCount = Object.values(gameState.properties).filter(pr => pr.owner === p.id).length;
+                    return `
+                        <div class="flex items-center justify-between px-2.5 py-2 rounded-xl border transition ${isTurn ? 'bg-slate-800 border-emerald-500/50 shadow-md' : 'bg-slate-900/60 border-slate-800/80'} ${p.bankrupt ? 'opacity-40 line-through' : ''}">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <div class="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs shrink-0" style="background:${p.color}">
+                                    <i class="fa-solid ${TOKEN_ICONS[p.token] || 'fa-hat-cowboy'}"></i>
+                                </div>
+                                <div class="min-w-0">
+                                    <div class="text-xs font-bold text-white truncate flex items-center gap-1">
+                                        <span>${p.name}</span>
+                                        ${p.id === myLocalSeatId && isOnlineRoom() ? '<span class="text-[9px] px-1 rounded bg-sky-500/20 text-sky-300">YOU</span>' : ''}
+                                        ${p.isBot ? '<span class="text-[9px] px-1 rounded bg-purple-500/20 text-purple-300">BOT</span>' : ''}
+                                    </div>
+                                    <div class="text-[10px] text-slate-400">${BOARD_TILES[p.position || 0]?.name || 'GO'} • ${propCount} deeds</div>
+                                </div>
+                            </div>
+                            <div class="font-mono font-extrabold text-xs text-emerald-400">$${p.cash}</div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            // My Portfolio Pills
+            const portfolioEl = document.getElementById('my-portfolio-pills');
+            if (portfolioEl) {
+                const targetPlayer = isOnlineRoom() ? getMyLobbyPlayer() : current;
+                const owned = BOARD_TILES.filter(t => gameState.properties[t.id]?.owner === targetPlayer?.id);
+                portfolioEl.innerHTML = owned.length
+                    ? owned.map(t => `<button onclick="selectTileInspector(${t.id})" style="border-color:${t.color}" class="px-2 py-0.5 rounded-md bg-slate-900 border-l-4 text-[10px] font-bold text-slate-200 hover:bg-slate-700">${t.name}</button>`).join('')
+                    : '<span class="text-[11px] text-slate-500">No properties owned yet</span>';
+            }
+
+            // Update 2D Board Tokens, Owners, and Houses
+            BOARD_TILES.forEach((tile, idx) => {
+                const tokWrap = document.getElementById(`tile-tokens-${idx}`);
+                if (tokWrap) {
+                    const here = gameState.players.filter(p => !p.bankrupt && (p.position || 0) === idx);
+                    tokWrap.innerHTML = here.map(p => `
+                        <div class="player-token-dot ${current?.id === p.id ? 'active-turn-token' : ''}" style="background:${p.color}" title="${p.name}">
+                            <i class="fa-solid ${TOKEN_ICONS[p.token] || 'fa-hat-cowboy'}"></i>
+                        </div>
+                    `).join('');
+                }
+
+                const ownerStrip = document.getElementById(`tile-owner-${idx}`);
+                const prop = gameState.properties[idx];
+                if (ownerStrip) {
+                    const owner = prop?.owner ? gameState.players.find(p => p.id === prop.owner) : null;
+                    ownerStrip.style.background = owner ? owner.color : 'transparent';
+                }
+
+                const houseBar = document.getElementById(`tile-houses-${idx}`);
+                if (houseBar && tile.type === 'property') {
+                    const houses = prop?.houses || 0;
+                    if (houses === 5) {
+                        houseBar.innerHTML = '<i class="fa-solid fa-hotel text-[9px] text-white drop-shadow"></i>';
+                    } else if (houses > 0) {
+                        houseBar.innerHTML = Array(houses).fill('<i class="fa-solid fa-house text-[7px] text-white drop-shadow"></i>').join('');
+                    } else {
+                        houseBar.innerHTML = '';
+                    }
+                }
+            });
+
+            // Render Inspector & Logs
+            renderTileInspector();
+
+            const logEl = document.getElementById('game-log-list');
+            if (logEl) {
+                logEl.innerHTML = [...gameState.logs].reverse().map(item => `
+                    <div class="text-[11px] leading-snug text-slate-300 border-b border-slate-800/50 pb-1">
+                        <span class="text-[9px] font-mono text-slate-500 mr-1">${item.time || ''}</span>
+                        <span>${item.text}</span>
+                    </div>
+                `).join('');
+            }
+
+            sync3DTokensAndHouses();
+        }
+
+        // =====================================================================
+        // INITIALIZATION ON LOAD
+        // =====================================================================
         window.onload = async function() {
             const urlParams = new URLSearchParams(window.location.search);
             const paramMap = urlParams.get('map');
