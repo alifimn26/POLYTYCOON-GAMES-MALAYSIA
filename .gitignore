@@ -4,3 +4,9 @@
 .vscode
 agents.md
 claude.md
+node_modules/
+test-results/
+playwright-report/
+
+vitest.config.js
+
