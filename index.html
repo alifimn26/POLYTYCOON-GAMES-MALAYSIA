@@ -462,7 +462,7 @@
 
                                 <button id="btn-pay-bail" onclick="handlePayJailBail()" class="hidden py-2 px-3.5 rounded-xl font-bold text-xs bg-rose-500/25 hover:bg-rose-500/35 text-rose-200 border border-rose-500/40 flex items-center justify-center gap-1.5 transition">
                                     <i class="fa-solid fa-key"></i>
-                                    <span>Pay $50 Bail</span>
+                                    <span id="btn-bail-label">Pay Bail</span>
                                 </button>
 
                                 <button id="btn-borrow-ahlong" onclick="handleBorrowAhLong()" class="hidden py-2 px-3.5 rounded-xl font-extrabold text-xs bg-gradient-to-r from-amber-500 to-rose-600 hover:from-amber-400 hover:to-rose-500 text-white shadow-lg flex items-center justify-center gap-1.5 transition active:scale-95">
@@ -654,9 +654,13 @@
                 <div>
                     <label class="text-[11px] text-slate-400 font-semibold block mb-1">Starting Cash</label>
                     <select id="rule-starting-cash" onchange="updateHouseRule('startingCash', Number(this.value))" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs font-bold text-white">
+                        <option value="500">$500 (Brutal)</option>
+                        <option value="750">$750 (Tough)</option>
+                        <option value="1000">$1,000 (Hardcore)</option>
                         <option value="1500">$1,500 (Standard)</option>
                         <option value="2000">$2,000 (Rich Start)</option>
-                        <option value="1000">$1,000 (Hardcore)</option>
+                        <option value="3000">$3,000 (Tycoon)</option>
+                        <option value="5000">$5,000 (Magnate)</option>
                     </select>
                 </div>
                 <div class="flex flex-col justify-center gap-1 pt-2 sm:pt-0">
@@ -793,19 +797,19 @@
                     { id: 39, name: 'KLCC Twin Towers', state: 'KL', type: 'property', price: 400, rent: [50, 200, 600, 1400, 1700, 2000], houseCost: 200, color: '#6366f1' }
                 ],
                 chance: [
-                    { text: 'Advance to MULA (GO) and collect $200!', action: 'move', target: 0 },
+                    { text: 'Advance to MULA (GO)!', action: 'move', target: 0 },
                     { text: 'Advance to KLCC Twin Towers!', action: 'move', target: 39 },
                     { text: 'Advance to Komtar George Town!', action: 'move', target: 19 },
-                    { text: 'Petronas dividend payout! Collect $150.', action: 'cash', amount: 150 },
-                    { text: 'Speeding fine on PLUS Highway! Pay $50.', action: 'cash', amount: -50 },
+                    { text: 'Petronas dividend payout!', action: 'cash', amount: 150 },
+                    { text: 'Speeding fine on PLUS Highway!', action: 'cash', amount: -50 },
                     { text: 'Traffic violation! Go directly to Jail.', action: 'jail' }
                 ],
                 chest: [
-                    { text: 'LHDN Tax Refund! Collect $100.', action: 'cash', amount: 100 },
-                    { text: 'Festive Duit Raya bonus! Collect $120.', action: 'cash', amount: 120 },
-                    { text: 'Medical clinic bill. Pay $50.', action: 'cash', amount: -50 },
-                    { text: 'Tourism Malaysia grant! Collect $200.', action: 'cash', amount: 200 },
-                    { text: 'Home maintenance fees. Pay $75.', action: 'cash', amount: -75 }
+                    { text: 'LHDN Tax Refund!', action: 'cash', amount: 100 },
+                    { text: 'Festive Duit Raya bonus!', action: 'cash', amount: 120 },
+                    { text: 'Medical clinic bill.', action: 'cash', amount: -50 },
+                    { text: 'Tourism Malaysia grant!', action: 'cash', amount: 200 },
+                    { text: 'Home maintenance fees.', action: 'cash', amount: -75 }
                 ]
             },
             classic: {
@@ -853,19 +857,19 @@
                     { id: 39, name: 'Boardwalk', type: 'property', price: 400, rent: [50, 200, 600, 1400, 1700, 2000], houseCost: 200, color: '#6366f1' }
                 ],
                 chance: [
-                    { text: 'Advance to GO and collect $200!', action: 'move', target: 0 },
+                    { text: 'Advance to GO!', action: 'move', target: 0 },
                     { text: 'Advance to Boardwalk!', action: 'move', target: 39 },
                     { text: 'Advance to Illinois Ave!', action: 'move', target: 24 },
-                    { text: 'Bank pays you dividend of $150.', action: 'cash', amount: 150 },
-                    { text: 'Speeding fine $50.', action: 'cash', amount: -50 },
+                    { text: 'Bank pays you a dividend.', action: 'cash', amount: 150 },
+                    { text: 'Speeding fine.', action: 'cash', amount: -50 },
                     { text: 'Go directly to Jail!', action: 'jail' }
                 ],
                 chest: [
-                    { text: 'Income tax refund! Collect $100.', action: 'cash', amount: 100 },
-                    { text: 'Holiday fund matures! Collect $120.', action: 'cash', amount: 120 },
-                    { text: 'Doctor\'s fee. Pay $50.', action: 'cash', amount: -50 },
-                    { text: 'Bank error in your favor! Collect $200.', action: 'cash', amount: 200 },
-                    { text: 'Hospital fees. Pay $75.', action: 'cash', amount: -75 }
+                    { text: 'Income tax refund!', action: 'cash', amount: 100 },
+                    { text: 'Holiday fund matures!', action: 'cash', amount: 120 },
+                    { text: 'Doctor\'s fee.', action: 'cash', amount: -50 },
+                    { text: 'Bank error in your favor!', action: 'cash', amount: 200 },
+                    { text: 'Hospital fees.', action: 'cash', amount: -75 }
                 ]
             }
         };
@@ -899,7 +903,11 @@
         const TURN_TIMEOUT_MS = 60000;               // design call: an idle human turn is skipped after 60s
         const TURN_TIMEOUT_DISCONNECTED_MS = 15000;  // design call: 15s when the seat owner looks disconnected
         const ENGINE_BUYABLE = ['property', 'railroad', 'utility'];
-        const ENGINE_START_CASH = [1000, 1500, 2000];
+        const ENGINE_START_CASH = [500, 750, 1000, 1500, 2000, 3000, 5000];
+        // Every flat money amount (GO salary, tax, bail, fines, the Ah Long loan) is quoted
+        // against this baseline and scaled to the table's starting cash, so a poor start and a
+        // rich start carry the same weight. At the 1500 baseline the scale is exactly 1.
+        const ECONOMY_BASELINE_CASH = 1500;
         const ENGINE_LOG_TYPES = ['system', 'event', 'move', 'cash', 'tax', 'buy'];
         const ENGINE_SOUNDS = ['buy', 'roll', 'jail', 'tax', 'step'];
         const ENGINE_EVENT_KINDS = ['roll', 'buy', 'build', 'mortgage', 'bail', 'end', 'skip', 'borrow', 'repay'];
@@ -907,8 +915,9 @@
         // The one AI bot a fresh local state starts with. Hosting a multiplayer room
         // drops this seat but keeps any bot the host added on purpose.
         const DEFAULT_BOT_SEAT_ID = 'bot_1';
-        // Ah Long loan shark terms. A player below the cash threshold can take one loan
-        // at a time; the loan adds cash now and comes due after a few of their turns.
+        // Ah Long loan shark terms, quoted at the 1500 baseline and scaled to the table by
+        // scaledCash. A player below the cash threshold can take one loan at a time; the loan
+        // adds cash now and comes due after a few of their turns.
         const AHLONG_CASH_THRESHOLD = 300;
         const AHLONG_LOAN_AMOUNT = 1000;
         const AHLONG_REPAY_AMOUNT = 1300;
@@ -923,6 +932,22 @@
                 const n = Number(v);
                 return Number.isFinite(n) ? Math.max(lo, Math.min(hi, Math.trunc(n))) : fallback;
             };
+
+            // The table's money scale: 1 at the 1500 baseline, 1/3 at a 500 start, 10/3 at 5000.
+            function cashScale(st) {
+                const base = Number(st && st.rules && st.rules.startingCash) || ECONOMY_BASELINE_CASH;
+                return base / ECONOMY_BASELINE_CASH;
+            }
+
+            // Scales a flat money amount to the table, rounded to the nearest 10 with a $10 floor
+            // (sign preserved), so tax, GO salary, bail, fines and the Ah Long loan all keep their
+            // weight whether the table starts poor or rich. At 1500 this returns the amount unchanged.
+            function scaledCash(st, baseAmount) {
+                const v = Number(baseAmount) || 0;
+                if (!v) return 0;
+                const magnitude = Math.max(10, Math.round(Math.abs(v * cashScale(st)) / 10) * 10);
+                return (v < 0 ? -1 : 1) * magnitude;
+            }
 
             function currentSeat(st) {
                 if (!st.players.length) return null;
@@ -1086,7 +1111,7 @@
                         }
                     }
                 } else if (tile.type === 'tax') {
-                    const tax = tile.amount || 100;
+                    const tax = scaledCash(st, tile.amount || 100);
                     player.cash -= tax;
                     if (st.rules.freeParkingJackpot) st.freeParkingPot = (st.freeParkingPot || 0) + tax;
                     fx.push({ t: 'sound', type: 'tax' });
@@ -1118,12 +1143,20 @@
                         pushLog(st, `🃏 ${tile.name}: "${card.text}"`, 'event');
                         fx.push({ t: 'toast', text: `🃏 ${card.text}` });
                         if (card.action === 'cash') {
-                            player.cash += card.amount;
-                            if (card.amount < 0 && st.rules.freeParkingJackpot) {
-                                st.freeParkingPot += Math.abs(card.amount);
+                            const delta = scaledCash(st, card.amount);
+                            player.cash += delta;
+                            if (delta < 0 && st.rules.freeParkingJackpot) {
+                                st.freeParkingPot += Math.abs(delta);
                             }
+                            pushLog(st, `💰 ${player.name} ${delta >= 0 ? 'collected' : 'paid'} $${Math.abs(delta)}.`, 'cash');
+                            fx.push({ t: 'float', text: `${delta >= 0 ? '+' : '-'}$${Math.abs(delta)}`, color: delta >= 0 ? '#10b981' : '#f43f5e', sender: player.name });
                         } else if (card.action === 'move') {
-                            if (card.target < player.position) player.cash += 200;
+                            if (card.target < player.position) {
+                                const salary = scaledCash(st, Number(st.rules.goSalary) || 200);
+                                player.cash += salary;
+                                pushLog(st, `💵 ${player.name} passed GO and collected $${salary}!`, 'cash');
+                                fx.push({ t: 'float', text: `+$${salary}`, color: '#10b981', sender: player.name });
+                            }
                             player.position = card.target;
                             jumps.push(card.target);
                             resolveLanding(st, fx, jumps, playerId, th.tiles[card.target], diceSum, rng);
@@ -1182,10 +1215,11 @@
                     } else {
                         p.jailTurns = (p.jailTurns || 0) + 1;
                         if (p.jailTurns >= 3) {
-                            p.cash -= 50;
+                            const bail = scaledCash(st, 50);
+                            p.cash -= bail;
                             p.inJail = false;
                             p.jailTurns = 0;
-                            pushLog(st, `🔑 ${p.name} paid $50 bail after 3 turns in Jail.`, 'tax');
+                            pushLog(st, `🔑 ${p.name} paid $${bail} bail after 3 turns in Jail.`, 'tax');
                         } else {
                             pushLog(st, `🔒 ${p.name} rolled ${d1}+${d2} and stays in Jail (${p.jailTurns}/3).`, 'system');
                             st.doublesCount = 0;
@@ -1200,7 +1234,8 @@
                     p.position = next;
                     path.push(next);
                     if (next === 0) {
-                        const salary = (s === total - 1 && st.rules.doubleOnGo) ? 400 : 200;
+                        const goSalary = Number(st.rules.goSalary) || 200;
+                        const salary = scaledCash(st, (s === total - 1 && st.rules.doubleOnGo) ? goSalary * 2 : goSalary);
                         p.cash += salary;
                         pushLog(st, `💵 ${p.name} passed GO and collected $${salary}!`, 'cash');
                         fx.push({ t: 'float', text: `+$${salary}`, color: '#10b981', sender: p.name, at: s });
@@ -1287,12 +1322,12 @@
                         return { ok: true };
                     }
                     case 'bail':
-                        return (seat.inJail && seat.cash >= 50) ? { ok: true } : fail(REASONS.bail);
+                        return (seat.inJail && seat.cash >= scaledCash(st, 50)) ? { ok: true } : fail(REASONS.bail);
                     case 'borrow':
                         // Rescue money only: one loan at a time, and only while nearly broke.
                         if (!st.rules.ahlongEnabled) return fail(REASONS.borrow);
                         if ((seat.debt || 0) > 0) return fail(REASONS.borrow);
-                        return seat.cash < AHLONG_CASH_THRESHOLD ? { ok: true } : fail(REASONS.borrow);
+                        return seat.cash < scaledCash(st, AHLONG_CASH_THRESHOLD) ? { ok: true } : fail(REASONS.borrow);
                     case 'repay':
                         return ((seat.debt || 0) > 0 && seat.cash >= seat.debt) ? { ok: true } : fail(REASONS.repay);
                     default:
@@ -1344,19 +1379,22 @@
                     }
                     fx.push({ t: 'sound', type: 'step' });
                 } else if (action.kind === 'bail') {
-                    p.cash -= 50;
+                    const bail = scaledCash(st, 50);
+                    p.cash -= bail;
                     p.inJail = false;
                     p.jailTurns = 0;
                     fx.push({ t: 'sound', type: 'buy' });
-                    pushLog(st, `🔑 ${p.name} paid $50 fine and is released from Jail!`, 'event');
+                    pushLog(st, `🔑 ${p.name} paid $${bail} fine and is released from Jail!`, 'event');
                 } else if (action.kind === 'borrow') {
-                    p.cash += AHLONG_LOAN_AMOUNT;
-                    p.debt = AHLONG_REPAY_AMOUNT;
+                    const loan = scaledCash(st, AHLONG_LOAN_AMOUNT);
+                    const repay = scaledCash(st, AHLONG_REPAY_AMOUNT);
+                    p.cash += loan;
+                    p.debt = repay;
                     p.debtDueIn = AHLONG_TERM_TURNS;
                     fx.push({ t: 'sound', type: 'tax' });
-                    pushLog(st, `🕴️ ${p.name} borrowed $${AHLONG_LOAN_AMOUNT} from the Ah Long. Owes $${AHLONG_REPAY_AMOUNT} in ${AHLONG_TERM_TURNS} turns.`, 'cash');
-                    fx.push({ t: 'toast', text: `🕴️ ${p.name} took a $${AHLONG_LOAN_AMOUNT} Ah Long loan` });
-                    fx.push({ t: 'float', text: `+$${AHLONG_LOAN_AMOUNT}`, color: '#f59e0b', sender: p.name });
+                    pushLog(st, `🕴️ ${p.name} borrowed $${loan} from the Ah Long. Owes $${repay} in ${AHLONG_TERM_TURNS} turns.`, 'cash');
+                    fx.push({ t: 'toast', text: `🕴️ ${p.name} took a $${loan} Ah Long loan` });
+                    fx.push({ t: 'float', text: `+$${loan}`, color: '#f59e0b', sender: p.name });
                 } else if (action.kind === 'repay') {
                     const owed = p.debt;
                     p.cash -= owed;
@@ -1421,21 +1459,22 @@
                 return { ok: true, state: st, removed: gone };
             }
 
-            // Same thresholds as the old bot: bail at $250, buy at price + $100, build at house cost + $250.
-            // A bot below $200 takes an Ah Long loan, and repays it on the turn before it comes due.
+            // Bot cushions are quoted in baseline money and scaled with the table, like every other
+            // flat amount: bail at $250, buy at price + $100, build at house cost + $250, and an Ah
+            // Long loan below $200, repaid on the turn before it comes due.
             function botChoice(state, seatId) {
                 const p = findP(state, seatId);
                 if (!p || !p.isBot || p.bankrupt) return null;
                 const tiles = theme(state).tiles;
                 if (state.turnPhase === 'ROLL') {
-                    if (state.rules.ahlongEnabled && !(p.debt > 0) && p.cash < 200) return 'borrow';
-                    return (p.inJail && p.cash >= 250) ? 'bail' : 'roll';
+                    if (state.rules.ahlongEnabled && !(p.debt > 0) && p.cash < scaledCash(state, 200)) return 'borrow';
+                    return (p.inJail && p.cash >= scaledCash(state, 250)) ? 'bail' : 'roll';
                 }
                 if (p.debt > 0 && p.cash >= p.debt && (p.debtDueIn || 0) <= 1) return 'repay';
                 const tile = tiles[p.position];
                 const prop = tile ? state.properties[tile.id] : null;
-                if (tile && ENGINE_BUYABLE.includes(tile.type) && !prop && p.cash >= tile.price + 100) return 'buy';
-                if (tile && tile.type === 'property' && prop && prop.owner === p.id && (prop.houses || 0) < 5 && p.cash >= (tile.houseCost || 100) + 250) return 'build';
+                if (tile && ENGINE_BUYABLE.includes(tile.type) && !prop && p.cash >= tile.price + scaledCash(state, 100)) return 'buy';
+                if (tile && tile.type === 'property' && prop && prop.owner === p.id && (prop.houses || 0) < 5 && p.cash >= (tile.houseCost || 100) + scaledCash(state, 250)) return 'build';
                 return 'end';
             }
 
@@ -1635,7 +1674,7 @@
 
             return {
                 createInitialState, validateRoomState, validateEvent, validateAction, applyAction,
-                resolveLanding, nextAliveSeatIndex, removeSeat, skipTurn, botChoice, pushLog, fnv1a64, clone, netWorth
+                resolveLanding, nextAliveSeatIndex, removeSeat, skipTurn, botChoice, pushLog, fnv1a64, clone, netWorth, scaledCash
             };
         })();
         window.PolyEngine = PolyEngine;
@@ -4700,6 +4739,8 @@
 
             const ahlongCb = document.getElementById('rule-ahlong');
             if (ahlongCb) ahlongCb.checked = gameState.rules?.ahlongEnabled !== false;
+            const cashSel = document.getElementById('rule-starting-cash');
+            if (cashSel) cashSel.value = String(Number(gameState.rules?.startingCash) || 1500);
             const endSel = document.getElementById('rule-end-mode');
             if (endSel) endSel.value = (gameState.rules?.endMode === 'rounds' && (gameState.rules?.maxRounds || 0) > 0) ? String(gameState.rules.maxRounds) : 'classic';
 
@@ -5263,7 +5304,7 @@
                     <div class="text-[9px] uppercase tracking-widest font-black opacity-80">${tile.state || tile.type} Title Deed</div>
                     <div class="font-black text-sm sm:text-base flex items-center justify-between mt-0.5">
                         <span class="truncate">${tile.name}</span>
-                        ${tile.price ? `<span class="font-mono text-xs bg-slate-950/45 px-2 py-0.5 rounded-md">$${tile.price}</span>` : ''}
+                        ${tile.price && tile.type !== 'tax' ? `<span class="font-mono text-xs bg-slate-950/45 px-2 py-0.5 rounded-md">$${tile.price}</span>` : ''}
                     </div>
                 </div>
                 <div class="text-xs text-slate-300 space-y-1.5 pt-1">
@@ -5292,6 +5333,12 @@
                                 </button>
                             ` : ''}
                         </div>
+                    ` : tile.type === 'tax' ? `
+                        <div class="flex justify-between items-center bg-slate-900/60 px-2.5 py-1.5 rounded-lg font-mono text-[11px]">
+                            <span class="text-slate-400">Tax due</span>
+                            <span class="font-extrabold text-rose-300">$${PolyEngine.scaledCash(gameState, tile.amount || 100)}</span>
+                        </div>
+                        <p class="text-[11px] text-slate-400 px-1">Tax scales with the table's starting cash.</p>
                     ` : `<p class="text-[11px] text-slate-400 px-1">Special board space (${tile.type.toUpperCase()}).</p>`}
                 </div>
             `;
@@ -5380,14 +5427,20 @@
             }
 
             // Action Buttons (2D Center Console + 3D Bottom Dock)
+            // Flat costs are quoted against the table's starting cash, so the buttons must show the
+            // same scaled numbers the engine charges.
+            const scaleMoney = (base) => PolyEngine.scaledCash(gameState, base);
+            const bailCost = scaleMoney(50);
+            const loanAmount = scaleMoney(AHLONG_LOAN_AMOUNT);
+            const borrowThreshold = scaleMoney(AHLONG_CASH_THRESHOLD);
             const curTile = current ? BOARD_TILES[current.position] : null;
             const curProp = curTile ? gameState.properties[curTile.id] : null;
             const showRoll = gameState.turnPhase === 'ROLL';
             const canBuy = canAct && !current?.isBot && gameState.turnPhase === 'END' && curTile && ['property', 'railroad', 'utility'].includes(curTile.type) && !curProp && current.cash >= curTile.price;
             const canBuild = canAct && !current?.isBot && curTile && curTile.type === 'property' && curProp?.owner === current?.id && !curProp.mortgaged && (curProp.houses || 0) < 5 && current.cash >= (curTile.houseCost || 100);
-            const showBail = canAct && !current?.isBot && Boolean(current?.inJail) && current.cash >= 50;
+            const showBail = canAct && !current?.isBot && Boolean(current?.inJail) && current.cash >= bailCost;
             // Ah Long: one loan at a time, offered only to a seat that is nearly broke.
-            const canBorrow = canAct && !current?.isBot && gameState.rules?.ahlongEnabled !== false && !(current?.debt > 0) && (current?.cash ?? 0) < AHLONG_CASH_THRESHOLD;
+            const canBorrow = canAct && !current?.isBot && gameState.rules?.ahlongEnabled !== false && !(current?.debt > 0) && (current?.cash ?? 0) < borrowThreshold;
             const canRepay = canAct && !current?.isBot && (current?.debt || 0) > 0 && current.cash >= current.debt;
 
             const rollBtn = document.getElementById('btn-roll-dice');
@@ -5410,11 +5463,15 @@
                 const lbl = document.getElementById('btn-build-label');
                 if (lbl && curTile) lbl.textContent = `Build ($${curTile.houseCost})`;
             }
-            if (bailBtn) bailBtn.classList.toggle('hidden', !showBail);
+            if (bailBtn) {
+                bailBtn.classList.toggle('hidden', !showBail);
+                const lbl = document.getElementById('btn-bail-label');
+                if (lbl) lbl.textContent = `Pay $${bailCost} Bail`;
+            }
             if (borrowBtn) {
                 borrowBtn.classList.toggle('hidden', !canBorrow);
                 const lbl = document.getElementById('btn-borrow-ahlong-label');
-                if (lbl) lbl.textContent = `Borrow $${AHLONG_LOAN_AMOUNT} from Ah Long`;
+                if (lbl) lbl.textContent = `Borrow $${loanAmount} from Ah Long`;
             }
             if (repayBtn) {
                 repayBtn.classList.toggle('hidden', !canRepay);
@@ -5432,7 +5489,7 @@
             const buy3dLbl = document.getElementById('btn-3d-buy-label');
             if (buy3dLbl && curTile) buy3dLbl.textContent = `Buy ($${curTile.price})`;
             const borrow3dLbl = document.getElementById('btn-3d-borrow-label');
-            if (borrow3dLbl) borrow3dLbl.textContent = `Ah Long +$${AHLONG_LOAN_AMOUNT}`;
+            if (borrow3dLbl) borrow3dLbl.textContent = `Ah Long +$${loanAmount}`;
             const repay3dLbl = document.getElementById('btn-3d-repay-label');
             if (repay3dLbl && current?.debt > 0) repay3dLbl.textContent = `Repay $${current.debt}`;
 
