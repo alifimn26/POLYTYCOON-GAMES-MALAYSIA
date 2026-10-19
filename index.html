@@ -279,28 +279,179 @@
             #chat-notice { margin-top: 6px; }
             #chat-reconnect-btn { position: relative; }
             #chat-reconnect-btn::after { content: ''; position: absolute; left: -4px; right: -4px; top: 50%; height: 44px; transform: translateY(-50%); }
+            /* The jail-gate bribe sits in the tight center console, so its 44px thumb target is a
+               pseudo-element overhang rather than a taller button that would push the board row.
+               The console gap is 8px, so the 5px overhang never covers a neighbouring control. */
+            #btn-bribe-guard, #btn-3d-bribe { position: relative; }
+            #btn-bribe-guard::after, #btn-3d-bribe::after {
+                content: ''; position: absolute; left: 0; right: 0; top: 50%;
+                height: 44px; transform: translateY(-50%);
+            }
+        }
+
+        /* Chat notification bubbles: a new room message pops in over the board while the thread is closed.
+           The 180 ms entrance is the one motion here and it pulls the eye to the message; nothing loops.
+           Shadow is the elevation marker that lifts the bubble off the board (R-12).
+           The stack is anchored inside the board stage, top right: it can never cover the sidebar, the
+           composer, a dialog, or the bottom action dock that holds Roll and End Turn. */
+        #chat-bubble-stack {
+            position: absolute;
+            right: 8px;
+            top: 8px;
+            z-index: 40;
+            width: min(320px, calc(100% - 16px));
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: none;
+        }
+        @media (min-width: 1024px) {
+            #chat-bubble-stack { right: 16px; top: 16px; }
+        }
+        @keyframes chatBubbleIn {
+            from { opacity: 0; transform: translateY(8px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes chatBubbleOut {
+            to { opacity: 0; transform: translateY(4px) scale(0.98); }
+        }
+        .chat-bubble { animation: chatBubbleIn 180ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+        .chat-bubble-out { animation: chatBubbleOut 160ms ease-in both; }
+        /* Three lines is enough to recognize the message; the full text lives in the thread. */
+        .chat-bubble-text {
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            overflow-wrap: anywhere;
+        }
+        /* On a phone the board is the whole screen, so the bubble shrinks to a compact card and only
+           one shows at a time. */
+        @media (max-width: 1023.98px) {
+            #chat-bubble-stack { width: min(280px, calc(100% - 24px)); }
+            #chat-bubble-stack .chat-bubble-text { -webkit-line-clamp: 2; }
+            /* The phone card drops the "Open chat" cue: the whole card is still the control, and the
+               shorter card keeps more of the board in view. */
+            #chat-bubble-stack .chat-bubble-hint { display: none; }
+            #chat-bubble-stack .chat-bubble-open { padding: 8px 44px 8px 8px; }
+            /* Both controls keep a 44px thumb target at phone widths, pointer type aside. */
+            #chat-bubble-stack .chat-bubble-close { min-width: 44px; min-height: 44px; }
+            #chat-bubble-stack .chat-bubble-open { min-height: 44px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .chat-bubble, .chat-bubble-out { animation: none; }
+        }
+        @media (pointer: coarse) {
+            .chat-bubble-close { min-width: 44px; min-height: 44px; }
+            .chat-bubble-open { min-height: 44px; }
+            /* Header actions are icon-only on a phone. A 44px-tall button forces the
+               header into a third row, which steals the board's height, so the visual
+               button stays compact and a pseudo-element provides the thumb target.
+               The cluster gap is 6px, so the overhang never covers a neighbour. */
+            .header-action { position: relative; }
+            .header-action::after {
+                content: ''; position: absolute; left: -6px; right: -6px; top: 50%;
+                height: 44px; transform: translateY(-50%);
+            }
+            /* Reaction chips need a thumb-sized target too, but an overhanging
+               pseudo-element is not an option here: the strip is a horizontal scroller
+               and clips its own overflow, so the chip itself has to grow. */
+            #emote-bar-container .emote-btn { min-height: 44px; }
+        }
+        /* Below ~400px the header ran out of width and wrapped to three rows, which cost
+           more board height than the button is worth. Invite duplicates the share icon in
+           the room pill, so it folds away and the room pill carries the action. The
+           selector is more specific than Tailwind's .flex, which would otherwise win. */
+        @media (max-width: 399.98px) {
+            header .header-invite { display: none; }
+        }
+        /* At 320px even that is not enough beside the wordmark. The logo tile keeps the
+           brand present, and the lobby modal repeats the name in full. */
+        @media (max-width: 359.98px) {
+            header .header-wordmark { display: none; }
+        }
+        /* The reaction strip lives inside the board hub, which clips what it cannot fit.
+           It is always one row that scrolls sideways: wrapping into a second row makes it
+           taller than the hub on tablet widths, and a clipped row of chips is unusable. */
+        #emote-bar-container {
+            flex-wrap: nowrap;
+            justify-content: flex-start;
+            /* When the chips fit, centre them under the console; when they do not, `safe`
+               keeps them pinned to the start so the first chip stays reachable. Browsers
+               without `safe` keep the flex-start above, which is the safe fallback. */
+            justify-content: safe center;
+            overflow-x: auto;
+            overflow-y: hidden;
+            scrollbar-width: none;
+            -webkit-overflow-scrolling: touch;
+        }
+        #emote-bar-container::-webkit-scrollbar { display: none; }
+        #emote-bar-container .emote-btn { flex: 0 0 auto; }
+        /* The phone hub is ~217px square, so its stacked content has always overflowed and
+           clipped the bottom row. Tighten the blocks that repeat information shown elsewhere
+           (the wordmark is in the header, the edition is in the header map pill) to give the
+           dice console and the reaction strip their height back. Applied from
+           updateBoardDimensions, because a narrow desktop stage hits the same limit. */
+        #board-center-hub.hub-compact #center-brand-title { display: none; }
+        #board-center-hub.hub-compact #center-status-subtitle {
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        /* The status line sits in a shrink-to-fit wrapper, so it needs a full-width
+           parent before the ellipsis can engage instead of running past the hub. */
+        #board-center-hub.hub-compact .my-auto > .text-center { width: 100%; }
+        #board-center-hub.hub-compact > div:first-child > * {
+            padding: 2px 6px; font-size: 9px;
+        }
+        #board-center-hub.hub-compact > div:first-child i,
+        #board-center-hub.hub-compact > div:first-child span { font-size: 9px; }
+        #board-center-hub.hub-compact .my-auto { gap: 2px; }
+        #board-center-hub.hub-compact #dice-stage-2d { gap: 2px; }
+        #board-center-hub.hub-tight .my-auto,
+        #board-center-hub.hub-tight #dice-stage-2d { gap: 1px; }
+        /* The dice are the game's centrepiece, so they only shrink on the shortest hubs:
+           a tablet hub has room for full-size dice once the blocks that repeat
+           information shown elsewhere (wordmark, edition badge) are folded away. */
+        #board-center-hub.hub-compact #dice-visual-box { padding-top: 2px; padding-bottom: 2px; }
+        #board-center-hub.hub-tight #dice-visual-box { padding-top: 1px; padding-bottom: 1px; }
+        #board-center-hub.hub-tight .pip-die {
+            width: 28px; height: 28px; border-radius: 8px; padding: 4px; gap: 1px;
+        }
+        #board-center-hub.hub-compact #emote-bar-container { padding-top: 1px; padding-bottom: 1px; }
+        #board-center-hub.hub-compact #emote-bar-container .emote-btn { height: 44px; min-width: 44px; }
+        #board-center-hub.hub-compact #emote-bar-container .emote-btn-word { font-size: 11px; }
+        /* A 6px gap keeps the strip clear of the roll button, so a chip is never the
+           thing closest to the thumb when the player reaches for ROLL DICE. */
+        #board-center-hub.hub-compact .my-auto + div { margin-top: 6px; }
+        /* Only fade the cut edge while there is more to scroll to, so the last chip is
+           never shown permanently half-lit. */
+        #emote-bar-container.emote-bar-more {
+            mask-image: linear-gradient(to right, #000 calc(100% - 14px), transparent 100%);
+            -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 14px), transparent 100%);
         }
     </style>
 </head>
 <body class="flex flex-col h-screen w-screen overflow-hidden select-none">
 
     <!-- TOP HEADER BAR -->
-    <header class="h-14 shrink-0 bg-slate-900/90 backdrop-blur-md border-b border-slate-800/90 px-3 sm:px-5 flex items-center justify-between gap-2 z-30">
-        <div class="flex items-center gap-2.5">
-            <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-cyan-600 flex items-center justify-center shadow-lg shadow-emerald-500/25">
+    <!-- Reflows to two rows on a phone: the brand and the action cluster keep their width,
+         and the room/board controls move to the second row instead of running off-screen. -->
+    <header class="min-h-14 shrink-0 bg-slate-900/90 backdrop-blur-md border-b border-slate-800/90 px-3 sm:px-5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-x-2 gap-y-1 py-1.5 sm:py-0 z-30">
+        <div class="flex items-center gap-2.5 min-w-0">
+            <div class="w-9 h-9 shrink-0 rounded-xl bg-gradient-to-br from-emerald-500 to-cyan-600 flex items-center justify-center shadow-lg shadow-emerald-500/25">
                 <i class="fa-solid fa-cubes-stacked text-white text-base"></i>
             </div>
-            <div>
+            <div class="min-w-0">
                 <div class="flex items-center gap-2">
-                    <h1 class="font-black text-sm sm:text-lg tracking-tight bg-gradient-to-r from-white via-slate-100 to-emerald-400 bg-clip-text text-transparent">POLYTYCOON</h1>
-                    <span id="connection-badge" class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">Ready</span>
+                    <h1 class="header-wordmark font-black text-sm sm:text-lg tracking-tight bg-gradient-to-r from-white via-slate-100 to-emerald-400 bg-clip-text text-transparent">POLYTYCOON</h1>
+                    <span id="connection-badge" class="hidden sm:inline text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">Ready</span>
                 </div>
-                <p id="user-id-display" class="text-[10px] text-slate-400 font-mono truncate max-w-[140px] sm:max-w-xs" title="Your anonymous Session ID">ID: initializing...</p>
+                <p id="user-id-display" class="hidden sm:block text-[10px] text-slate-400 font-mono truncate max-w-[140px] sm:max-w-xs" title="Your anonymous Session ID">ID: initializing...</p>
             </div>
         </div>
 
-        <!-- Center Room Badge & 2D/3D View Mode Switcher -->
-        <div class="flex items-center gap-2 sm:gap-3">
+        <!-- Center Room Badge & 2D/3D View Mode Switcher. On a phone this drops to its own
+             row instead of pushing the action cluster off-screen. -->
+        <div class="order-last w-full sm:order-none sm:w-auto flex items-center justify-between sm:justify-start gap-2 sm:gap-3">
             <div id="room-code-pill" class="flex items-center gap-1.5 bg-slate-800/90 border border-slate-700 px-2.5 py-1 rounded-xl">
                 <span class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold hidden sm:inline">Room</span>
                 <span id="header-room-code" class="font-mono font-extrabold text-xs sm:text-sm text-emerald-400 tracking-widest">LOCAL</span>
@@ -325,21 +476,21 @@
         </div>
 
         <!-- Right Quick Actions -->
-        <div class="flex items-center gap-1.5 sm:gap-2">
-            <button onclick="downloadSelfAsIndexHtml()" class="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-bold flex items-center gap-1.5 transition" title="Download this page as index.html">
+        <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <button onclick="downloadSelfAsIndexHtml()" class="header-action px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-bold flex items-center gap-1.5 transition" title="Download this page as index.html" aria-label="Download this page as index.html">
                 <i class="fa-solid fa-download text-emerald-400"></i>
                 <span class="hidden xl:inline">Save HTML</span>
             </button>
-            <button onclick="toggleSoundMute()" id="btn-sound-toggle" class="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 flex items-center justify-center text-slate-300 transition" title="Toggle Sound Effects">
+            <button onclick="toggleSoundMute()" id="btn-sound-toggle" class="header-action w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 flex items-center justify-center text-slate-300 transition" title="Toggle Sound Effects" aria-label="Toggle sound effects">
                 <i class="fa-solid fa-volume-high text-xs"></i>
             </button>
-            <button onclick="openShareModal()" class="px-2.5 py-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/40 text-indigo-300 text-xs font-bold flex items-center gap-1.5 transition">
+            <button onclick="openShareModal()" class="header-action header-invite px-2.5 py-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/40 text-indigo-300 text-xs font-bold flex items-center gap-1.5 transition" aria-label="Multiplayer room and invite link">
                 <i class="fa-solid fa-users"></i>
                 <span class="hidden sm:inline">Invite</span>
             </button>
-            <button onclick="openStartMenuModal()" class="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-emerald-600/20 transition">
+            <button onclick="openStartMenuModal()" class="header-action px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-emerald-600/20 transition" aria-label="Open lobby">
                 <i class="fa-solid fa-gamepad"></i>
-                <span class="hidden sm:inline">Lobby</span>
+                <span>Lobby</span>
             </button>
         </div>
     </header>
@@ -394,19 +545,30 @@
                 <span id="banner-toast-text">Welcome to PolyTycoon!</span>
             </div>
 
-            <!-- Match result overlay: shown once a winner is decided -->
-            <div id="match-result" class="hidden fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm items-center justify-center p-4">
-                <div class="w-full max-w-sm bg-slate-900 border border-emerald-500/40 rounded-3xl p-5 shadow-2xl text-center space-y-3">
+            <!-- Match result: the end-of-match decision screen. Its exits are a new round
+                 or the lobby, so closing it can never leave the board with dead controls. -->
+            <div id="match-result" role="dialog" aria-modal="true" aria-labelledby="match-result-title" aria-describedby="match-result-body" class="hidden fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm items-center justify-center p-4">
+                <div class="w-full max-w-sm bg-slate-900 border border-emerald-500/40 rounded-3xl p-5 shadow-2xl text-center space-y-3 max-h-[92dvh] overflow-y-auto">
                     <div class="text-4xl" aria-hidden="true">🏆</div>
                     <h2 id="match-result-title" class="text-lg font-black text-white">Match Over</h2>
                     <p id="match-result-body" class="text-xs text-slate-300"></p>
                     <div id="match-result-table" class="text-left text-[11px] font-mono text-slate-300 space-y-1 max-h-40 overflow-y-auto"></div>
-                    <button onclick="dismissMatchResult()" class="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-sm transition">Close</button>
+                    <div class="space-y-2 pt-1">
+                        <button id="btn-start-next-round" onclick="startNextRound()" class="w-full min-h-[48px] py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300">Start next round</button>
+                        <button id="btn-match-to-lobby" onclick="openLobbyFromMatchResult()" class="w-full min-h-[48px] py-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-100 font-bold text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300">Back to lobby</button>
+                    </div>
+                    <p id="match-result-guest-note" class="hidden text-[11px] text-slate-400">The room host starts the next round. You can wait here or go back to the lobby.</p>
                 </div>
             </div>
 
             <!-- Floating Emotes & Cash Popups Container -->
             <div id="floating-emote-container" class="pointer-events-none absolute inset-0 flex items-center justify-center z-40"></div>
+
+            <!-- CHAT NOTIFICATION BUBBLES: new room messages while the Chat thread is out of sight.
+                 The bubbles themselves are not a live region, so a screen reader hears each message once
+                 through #chat-bubble-live instead of hearing every control inside the bubble. -->
+            <div id="chat-bubble-stack" role="group" aria-label="New chat messages"></div>
+            <div id="chat-bubble-live" role="status" aria-live="polite" class="sr-only"></div>
 
             <!-- 2D BOARD WRAPPER -->
             <div id="board-2d-wrapper" class="flex items-center justify-center">
@@ -427,12 +589,12 @@
                         <!-- Centerpiece Dice & Primary Action Console -->
                         <div class="flex flex-col items-center justify-center gap-2 sm:gap-3 my-auto w-full max-w-xs">
                             <div class="text-center">
-                                <h2 class="font-black text-base sm:text-2xl tracking-tight bg-gradient-to-r from-white via-emerald-200 to-teal-400 bg-clip-text text-transparent">POLYTYCOON</h2>
+                                <h2 id="center-brand-title" class="font-black text-base sm:text-2xl tracking-tight bg-gradient-to-r from-white via-emerald-200 to-teal-400 bg-clip-text text-transparent">POLYTYCOON</h2>
                                 <p id="center-status-subtitle" class="text-[10px] sm:text-xs text-slate-400 font-medium">Roll the dice to build your empire</p>
                             </div>
 
                             <!-- 3D Pip Dice Stage -->
-                            <div class="flex flex-col items-center gap-1.5">
+                            <div id="dice-stage-2d" class="flex flex-col items-center gap-1.5">
                                 <div id="dice-visual-box" onclick="handleRollDice()" class="flex items-center gap-3 sm:gap-4 cursor-pointer py-2.5 px-5 rounded-2xl bg-slate-900/90 border border-slate-700/80 shadow-2xl hover:border-emerald-500/60 transition group" title="Click to Roll Dice">
                                     <div id="die-face-1" class="pip-die" data-val="1"></div>
                                     <div id="die-face-2" class="pip-die" data-val="1"></div>
@@ -445,6 +607,11 @@
 
                             <!-- Centered Primary Action Console (Roll / Buy / Build / End Turn) -->
                             <div class="w-full flex flex-wrap items-center justify-center gap-2 pt-0.5">
+                                <button id="btn-show-match-result" onclick="reopenMatchResult()" class="hidden w-full max-w-[220px] py-2.5 px-5 rounded-2xl font-black text-xs sm:text-sm bg-emerald-600 hover:bg-emerald-500 text-white shadow-xl flex items-center justify-center gap-2 transition active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300">
+                                    <i class="fa-solid fa-trophy text-base"></i>
+                                    <span>View final result</span>
+                                </button>
+
                                 <button id="btn-roll-dice" onclick="handleRollDice()" class="cta-roll-pulse w-full max-w-[220px] py-2.5 px-5 rounded-2xl font-black text-xs sm:text-sm bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white shadow-xl flex items-center justify-center gap-2 transition active:scale-95 disabled:opacity-40 disabled:pointer-events-none">
                                     <i class="fa-solid fa-dice text-base"></i>
                                     <span>ROLL DICE</span>
@@ -465,6 +632,11 @@
                                     <span id="btn-bail-label">Pay Bail</span>
                                 </button>
 
+                                <button id="btn-bribe-guard" onclick="handleBribeGuard()" title="50% chance the guard takes the money and jails you anyway" class="hidden py-2 px-3.5 rounded-xl font-bold text-xs bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 flex items-center justify-center gap-1.5 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300">
+                                    <i class="fa-solid fa-user-secret"></i>
+                                    <span id="btn-bribe-label">Bribe</span>
+                                </button>
+
                                 <button id="btn-borrow-ahlong" onclick="handleBorrowAhLong()" class="hidden py-2 px-3.5 rounded-xl font-extrabold text-xs bg-gradient-to-r from-amber-500 to-rose-600 hover:from-amber-400 hover:to-rose-500 text-white shadow-lg flex items-center justify-center gap-1.5 transition active:scale-95">
                                     <i class="fa-solid fa-hand-holding-dollar"></i>
                                     <span id="btn-borrow-ahlong-label">Ah Long Loan</span>
@@ -477,14 +649,14 @@
 
                                 <button id="btn-end-turn" onclick="handleEndTurn()" class="hidden py-2 px-5 rounded-xl font-black text-xs sm:text-sm bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2 transition active:scale-95">
                                     <i class="fa-solid fa-forward-step"></i>
-                                    <span>END TURN</span>
+                                    <span id="btn-end-label">END TURN</span>
                                 </button>
                             </div>
                         </div>
 
                         <!-- Bottom Quick Emote Bar -->
                         <div class="w-full flex flex-col items-center">
-                            <div id="emote-bar-container" class="flex items-center justify-center gap-1 sm:gap-1.5 bg-slate-900/90 border border-slate-800 px-2.5 py-1 rounded-xl"></div>
+                            <div id="emote-bar-container" class="flex flex-wrap items-center justify-center gap-1 sm:gap-1.5 bg-slate-900/90 border border-slate-800 px-2 sm:px-2.5 py-1 rounded-xl max-w-full"></div>
                         </div>
                     </div>
                 </div>
@@ -500,6 +672,10 @@
                         <div id="die-3d-dock-1" class="pip-die pip-die-sm" data-val="1"></div>
                         <div id="die-3d-dock-2" class="pip-die pip-die-sm" data-val="1"></div>
                     </div>
+                    <button id="btn-3d-result" onclick="reopenMatchResult()" class="hidden py-2 px-4 rounded-xl font-black text-xs bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg flex items-center gap-1.5 transition">
+                        <i class="fa-solid fa-trophy"></i>
+                        <span>View final result</span>
+                    </button>
                     <button id="btn-3d-roll" onclick="handleRollDice()" class="py-2 px-4 rounded-xl font-black text-xs bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-lg flex items-center gap-1.5 transition">
                         <i class="fa-solid fa-dice"></i>
                         <span>ROLL</span>
@@ -510,6 +686,12 @@
                     <button id="btn-3d-build" onclick="handleUpgradeCurrentTile()" class="hidden py-2 px-3.5 rounded-xl font-extrabold text-xs bg-sky-400 hover:bg-sky-300 text-slate-950 transition">
                         <span>Build</span>
                     </button>
+                    <button id="btn-3d-bail" onclick="handlePayJailBail()" class="hidden py-2 px-3.5 rounded-xl font-bold text-xs bg-rose-500/25 hover:bg-rose-500/35 text-rose-200 border border-rose-500/40 transition">
+                        <span id="btn-3d-bail-label">Pay Bail</span>
+                    </button>
+                    <button id="btn-3d-bribe" onclick="handleBribeGuard()" title="50% chance the guard takes the money and jails you anyway" class="hidden py-2 px-3.5 rounded-xl font-bold text-xs bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300">
+                        <span id="btn-3d-bribe-label">Bribe</span>
+                    </button>
                     <button id="btn-3d-borrow" onclick="handleBorrowAhLong()" class="hidden py-2 px-3.5 rounded-xl font-extrabold text-xs bg-gradient-to-r from-amber-500 to-rose-600 hover:from-amber-400 hover:to-rose-500 text-white transition">
                         <span id="btn-3d-borrow-label">Ah Long</span>
                     </button>
@@ -517,7 +699,7 @@
                         <span id="btn-3d-repay-label">Repay</span>
                     </button>
                     <button id="btn-3d-end" onclick="handleEndTurn()" class="hidden py-2 px-4 rounded-xl font-black text-xs bg-indigo-600 hover:bg-indigo-500 text-white transition">
-                        <span>END TURN</span>
+                        <span id="btn-3d-end-label">END TURN</span>
                     </button>
                 </div>
             </div>
@@ -691,7 +873,7 @@
 
             <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
                 <p id="lobby-not-ready" class="hidden mr-auto text-[11px] font-semibold text-amber-300 break-words min-w-0"></p>
-                <button id="btn-close-start-modal" onclick="closeStartMenuModal()" class="hidden px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition">Resume Current Game</button>
+                <button id="btn-close-start-modal" onclick="closeLobbyOrShowResult()" class="hidden px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition">Resume Current Game</button>
                 <button id="btn-launch-match" onclick="startMatchFromLobby()" class="flex-1 sm:flex-none px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-extrabold text-sm shadow-lg shadow-emerald-600/25 transition">🚀 Start Match</button>
             </div>
         </div>
@@ -910,7 +1092,7 @@
         const ECONOMY_BASELINE_CASH = 1500;
         const ENGINE_LOG_TYPES = ['system', 'event', 'move', 'cash', 'tax', 'buy'];
         const ENGINE_SOUNDS = ['buy', 'roll', 'jail', 'tax', 'step'];
-        const ENGINE_EVENT_KINDS = ['roll', 'buy', 'build', 'mortgage', 'bail', 'end', 'skip', 'borrow', 'repay'];
+        const ENGINE_EVENT_KINDS = ['roll', 'buy', 'build', 'mortgage', 'bail', 'bribe', 'end', 'skip', 'borrow', 'repay'];
         const ENGINE_SEAT_ID = /^[A-Za-z0-9_-]{1,40}$/;
         // The one AI bot a fresh local state starts with. Hosting a multiplayer room
         // drops this seat but keeps any bot the host added on purpose.
@@ -922,6 +1104,17 @@
         const AHLONG_LOAN_AMOUNT = 1000;
         const AHLONG_REPAY_AMOUNT = 1300;
         const AHLONG_TERM_TURNS = 4;
+        // The jail gate bribe. Landing on Go To Jail, or drawing the Jail card, parks the
+        // player at the gate instead of locking them up. The bribe is a gamble: the guard
+        // takes the cash either way, and only lets the player walk half the time.
+        const BRIBE_COST = 100;
+        const BRIBE_SUCCESS_CHANCE = 0.5;
+        // The cell bribe. Once locked up and a roll has already failed, the guard is on the
+        // take: a higher price, but certain, and it hands the roll back so the turn is not lost.
+        const CELL_BRIBE_COST = 150;
+        // Turns served before the bail is collected automatically. Bail can also be paid up
+        // front on any turn, so this is the worst case, not the only way out.
+        const JAIL_TURNS_TO_SERVE = 2;
 
         const PolyEngine = (() => {
             const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -977,6 +1170,14 @@
                 st.turnId = (Number(st.turnId) || 0) + 1;
                 st.doublesCount = 0;
                 st.turnCount = (Number(st.turnCount) || 0) + 1;
+            }
+
+            // Locks a seat up at tile 10. Used when the gate decision goes against them.
+            function sendToJail(p) {
+                p.position = 10;
+                p.inJail = true;
+                p.jailTurns = 0;
+                p.pendingJail = false;
             }
 
             // Cash plus deed value, using the list price and half price for a mortgaged deed.
@@ -1129,12 +1330,13 @@
                     }
                 } else if (tile.type === 'gotojail') {
                     player.position = 10;
-                    player.inJail = true;
+                    player.inJail = false;
                     player.jailTurns = 0;
+                    player.pendingJail = true;
                     jumps.push(10);
                     fx.push({ t: 'sound', type: 'jail' });
-                    pushLog(st, `🚓 ${player.name} was sent directly to Jail!`, 'tax');
-                    fx.push({ t: 'toast', text: `🚓 ${player.name} went to Jail!` });
+                    pushLog(st, `🚧 ${player.name} was stopped at the Jail gate and must bribe the guard or serve time.`, 'tax');
+                    fx.push({ t: 'toast', text: `🚧 ${player.name} is at the Jail gate` });
                 } else if (tile.type === 'chance' || tile.type === 'chest') {
                     const th = theme(st);
                     const deck = tile.type === 'chance' ? th.chance : th.chest;
@@ -1162,15 +1364,19 @@
                             resolveLanding(st, fx, jumps, playerId, th.tiles[card.target], diceSum, rng);
                         } else if (card.action === 'jail') {
                             player.position = 10;
-                            player.inJail = true;
+                            player.inJail = false;
                             player.jailTurns = 0;
+                            player.pendingJail = true;
                             jumps.push(10);
+                            pushLog(st, `🚧 ${player.name} was stopped at the Jail gate and must bribe the guard or serve time.`, 'tax');
+                            fx.push({ t: 'toast', text: `🚧 ${player.name} is at the Jail gate` });
                         }
                     }
                 }
 
                 if (player.cash < 0) {
                     player.bankrupt = true;
+                    player.pendingJail = false;
                     Object.keys(st.properties).forEach(tid => {
                         if (st.properties[tid]?.owner === player.id) delete st.properties[tid];
                     });
@@ -1195,9 +1401,7 @@
 
                 // A third doubles in a row sends the player to Jail without moving, and ends the turn.
                 if (!startedInJail && isDoubles && (Number(st.doublesCount) || 0) >= 2) {
-                    p.position = 10;
-                    p.inJail = true;
-                    p.jailTurns = 0;
+                    sendToJail(p);
                     jumps.push(10);
                     st.doublesCount = 0;
                     st.turnPhase = 'END';
@@ -1214,14 +1418,14 @@
                         pushLog(st, `🎲 ${p.name} rolled doubles (${d1}+${d2}) and escaped Jail!`, 'event');
                     } else {
                         p.jailTurns = (p.jailTurns || 0) + 1;
-                        if (p.jailTurns >= 3) {
+                        if (p.jailTurns >= JAIL_TURNS_TO_SERVE) {
                             const bail = scaledCash(st, 50);
                             p.cash -= bail;
                             p.inJail = false;
                             p.jailTurns = 0;
-                            pushLog(st, `🔑 ${p.name} paid $${bail} bail after 3 turns in Jail.`, 'tax');
+                            pushLog(st, `🔑 ${p.name} paid $${bail} bail after ${JAIL_TURNS_TO_SERVE} turns in Jail.`, 'tax');
                         } else {
-                            pushLog(st, `🔒 ${p.name} rolled ${d1}+${d2} and stays in Jail (${p.jailTurns}/3).`, 'system');
+                            pushLog(st, `🔒 ${p.name} rolled ${d1}+${d2} and stays in Jail (${p.jailTurns}/${JAIL_TURNS_TO_SERVE}).`, 'system');
                             st.doublesCount = 0;
                             st.turnPhase = 'END';
                             return event;
@@ -1247,8 +1451,8 @@
                 resolveLanding(st, fx, jumps, seatId, landed, total, rng);
 
                 // A fresh doubles grants another roll. Escaping Jail with doubles does not,
-                // and neither does a doubles that lands the player in Jail or bankrupt.
-                if (isDoubles && !startedInJail && !p.inJail && !p.bankrupt) {
+                // and neither does a doubles that lands the player in Jail, at the gate, or bankrupt.
+                if (isDoubles && !startedInJail && !p.inJail && !p.pendingJail && !p.bankrupt) {
                     st.doublesCount = (Number(st.doublesCount) || 0) + 1;
                     st.turnId = (Number(st.turnId) || 0) + 1;
                     st.turnPhase = 'ROLL';
@@ -1265,6 +1469,7 @@
                 notPlaying: 'not_playing', paused: 'paused', seat: 'not_your_seat', turn: 'not_your_turn',
                 rolled: 'already_rolled', rollFirst: 'roll_first', cash: 'not_enough_cash', buy: 'cannot_buy',
                 build: 'cannot_build', mortgage: 'cannot_mortgage', bail: 'cannot_pay_bail',
+                bribe: 'cannot_bribe',
                 borrow: 'cannot_borrow', repay: 'cannot_repay'
             };
 
@@ -1304,6 +1509,9 @@
                     }
                     case 'build': {
                         if (st.turnPhase !== 'END') return fail(REASONS.rollFirst);
+                        // A gate decision comes first; building is not part of it. Mortgaging stays
+                        // open because raising cash is how a seat affords the bribe.
+                        if (seat.pendingJail) return fail(REASONS.build);
                         const tid = Number.isInteger(a.tileId) ? a.tileId : seat.position;
                         const tile = tiles[tid];
                         const prop = st.properties[tid];
@@ -1322,7 +1530,22 @@
                         return { ok: true };
                     }
                     case 'bail':
+                        // Bail is the pre-roll escape: pay instead of rolling. Once the roll has
+                        // failed, the cell bribe is the only way to buy the move back.
+                        if (st.turnPhase !== 'ROLL') return fail(REASONS.bail);
                         return (seat.inJail && seat.cash >= scaledCash(st, 50)) ? { ok: true } : fail(REASONS.bail);
+                    case 'bribe': {
+                        // Two different guards. At the gate it is one gamble before the cell
+                        // door shuts; inside the cell, after a failed roll, it is certain but dearer.
+                        const atGate = seat.pendingJail && !seat.inJail && seat.position === 10;
+                        // Inside the cell the deal needs a failed roll behind it. That keeps three
+                        // doubles (and a botched gate bribe) an automatic lockup with no buyout.
+                        const inCell = seat.inJail && !seat.pendingJail && st.turnPhase === 'END' && (seat.jailTurns || 0) >= 1;
+                        if (!atGate && !inCell) return fail(REASONS.bribe);
+                        if (atGate && st.turnPhase !== 'END') return fail(REASONS.bribe);
+                        const cost = scaledCash(st, atGate ? BRIBE_COST : CELL_BRIBE_COST);
+                        return (seat.cash >= cost) ? { ok: true } : fail(REASONS.bribe);
+                    }
                     case 'borrow':
                         // Rescue money only: one loan at a time, and only while nearly broke.
                         if (!st.rules.ahlongEnabled) return fail(REASONS.borrow);
@@ -1383,8 +1606,37 @@
                     p.cash -= bail;
                     p.inJail = false;
                     p.jailTurns = 0;
+                    p.pendingJail = false;
                     fx.push({ t: 'sound', type: 'buy' });
                     pushLog(st, `🔑 ${p.name} paid $${bail} fine and is released from Jail!`, 'event');
+                } else if (action.kind === 'bribe') {
+                    // At the gate the guard pockets the money either way and only sometimes
+                    // looks away. In the cell, after a failed roll, the deal is certain: the
+                    // higher price buys the release and the roll that was already spent.
+                    const inCell = p.inJail && !p.pendingJail;
+                    const bribe = scaledCash(st, inCell ? CELL_BRIBE_COST : BRIBE_COST);
+                    p.cash -= bribe;
+                    p.pendingJail = false;
+                    if (inCell) {
+                        p.inJail = false;
+                        p.jailTurns = 0;
+                        st.turnPhase = 'ROLL';
+                        st.turnId = (Number(st.turnId) || 0) + 1;
+                        fx.push({ t: 'sound', type: 'buy' });
+                        pushLog(st, `🔓 ${p.name} paid $${bribe} to the cell guard and walked out with the roll back!`, 'event');
+                        fx.push({ t: 'toast', text: `🔓 ${p.name} bought the way out for $${bribe}` });
+                    } else if (rng() < BRIBE_SUCCESS_CHANCE) {
+                        p.inJail = false;
+                        p.jailTurns = 0;
+                        fx.push({ t: 'sound', type: 'buy' });
+                        pushLog(st, `🤝 ${p.name} slipped $${bribe} to the guard and walked away free!`, 'event');
+                        fx.push({ t: 'toast', text: `🤝 The guard took $${bribe} and let ${p.name} go` });
+                    } else {
+                        sendToJail(p);
+                        fx.push({ t: 'sound', type: 'jail' });
+                        pushLog(st, `🚓 The guard pocketed $${bribe} and locked ${p.name} up anyway!`, 'tax');
+                        fx.push({ t: 'toast', text: `🚓 ${p.name} bribed the guard and still went to Jail` });
+                    }
                 } else if (action.kind === 'borrow') {
                     const loan = scaledCash(st, AHLONG_LOAN_AMOUNT);
                     const repay = scaledCash(st, AHLONG_REPAY_AMOUNT);
@@ -1405,6 +1657,12 @@
                     fx.push({ t: 'toast', text: `🕴️ ${p.name} cleared the Ah Long debt` });
                     fx.push({ t: 'float', text: `-$${owed}`, color: '#f59e0b', sender: p.name });
                 } else if (action.kind === 'end') {
+                    // Leaving the gate without paying means the guard books the player in.
+                    if (p.pendingJail && !p.bankrupt) {
+                        sendToJail(p);
+                        fx.push({ t: 'sound', type: 'jail' });
+                        pushLog(st, `🚓 ${p.name} left the Jail gate without a bribe and was locked up.`, 'tax');
+                    }
                     collectAhLongDebt(st, p, fx);
                     if (!advanceOrEnd(st, fx)) fx.push({ t: 'sound', type: 'step' });
                 }
@@ -1420,9 +1678,15 @@
                 const why = reason === 'disconnected' ? 'disconnected' : 'no move for 60s';
                 // A skipped turn still counts toward the Ah Long deadline, so idling can't dodge it.
                 collectAhLongDebt(st, p, fx);
+                if (p.pendingJail && !p.bankrupt) {
+                    sendToJail(p);
+                    pushLog(st, `⏭️ ${p.name} froze at the Jail gate and was locked up.`, 'tax');
+                }
                 if (st.turnPhase === 'ROLL' && p.inJail) {
-                    p.jailTurns = Math.min((p.jailTurns || 0) + 1, 2);
-                    pushLog(st, `⏭️ ${p.name}'s turn was skipped while in Jail (${p.jailTurns}/3).`, 'system');
+                    // A skipped jail turn counts, but the cap keeps idling from ever reaching
+                    // the release threshold, so serving time still needs a real roll.
+                    p.jailTurns = Math.min((p.jailTurns || 0) + 1, JAIL_TURNS_TO_SERVE - 1);
+                    pushLog(st, `⏭️ ${p.name}'s turn was skipped while in Jail (${p.jailTurns}/${JAIL_TURNS_TO_SERVE}).`, 'system');
                 } else {
                     pushLog(st, `⏭️ ${p.name}'s turn was skipped (${why}).`, 'system');
                 }
@@ -1471,6 +1735,12 @@
                     return (p.inJail && p.cash >= scaledCash(state, 250)) ? 'bail' : 'roll';
                 }
                 if (p.debt > 0 && p.cash >= p.debt && (p.debtDueIn || 0) <= 1) return 'repay';
+                // At the Jail gate the bot pays the guard only when the loss would not hurt it.
+                if (p.pendingJail) return (p.cash >= scaledCash(state, BRIBE_COST + 500)) ? 'bribe' : 'end';
+                // Locked up after a failed roll: the cell bribe is certain but dear, so a bot
+                // only pays it when the cushion survives. Without a failed roll behind it (three
+                // doubles, a botched gate bribe) the engine refuses, so the bot just ends.
+                if (p.inJail) return ((p.jailTurns || 0) >= 1 && p.cash >= scaledCash(state, CELL_BRIBE_COST + 500)) ? 'bribe' : 'end';
                 const tile = tiles[p.position];
                 const prop = tile ? state.properties[tile.id] : null;
                 if (tile && ENGINE_BUYABLE.includes(tile.type) && !prop && p.cash >= tile.price + scaledCash(state, 100)) return 'buy';
@@ -1488,6 +1758,7 @@
                 players.forEach(p => {
                     p.debt = isInt(p.debt, 0, 10000000) ? p.debt : 0;
                     p.debtDueIn = isInt(p.debtDueIn, 0, 99) ? p.debtDueIn : 0;
+                    p.pendingJail = p.pendingJail === true;
                 });
                 return {
                     roomCode: o.roomCode || 'LOCAL',
@@ -1549,7 +1820,8 @@
                         cash: clampInt(rp.cash, -10000000, 10000000, 0),
                         position: isInt(rp.position, 0, 39) ? rp.position : 0,
                         inJail: rp.inJail === true,
-                        jailTurns: isInt(rp.jailTurns, 0, 3) ? rp.jailTurns : 0,
+                        pendingJail: rp.pendingJail === true,
+                        jailTurns: isInt(rp.jailTurns, 0, JAIL_TURNS_TO_SERVE) ? rp.jailTurns : 0,
                         isBot,
                         ready: rp.ready === true,
                         bankrupt: rp.bankrupt === true,
@@ -1557,6 +1829,8 @@
                         debtDueIn: isInt(rp.debtDueIn, 0, 99) ? rp.debtDueIn : 0
                     };
                     if (!isBot) p.tokenHash = tokenHash;
+                    // A gate decision only exists on the Jail tile, and never together with a cell lockup.
+                    if (p.pendingJail && (p.position !== 10 || p.inJail)) p.pendingJail = false;
                     players.push(p);
                 }
                 if (!players.length) return null;
@@ -2190,7 +2464,8 @@
                 status: gameState.status,
                 turnId: gameState.turnId,
                 hostClientId: gameState.hostClientId,
-                roomCode: gameState.roomCode
+                roomCode: gameState.roomCode,
+                winnerId: gameState.winnerId
             };
             const first = Boolean(meta && meta.first);
 
@@ -2615,7 +2890,7 @@
 
         function handleActionPacket(data) {
             if (!isRoomHost) return;
-            const kinds = ['roll', 'buy', 'build', 'mortgage', 'bail', 'end', 'borrow', 'repay'];
+            const kinds = ['roll', 'buy', 'build', 'mortgage', 'bail', 'bribe', 'end', 'borrow', 'repay'];
             const action = {
                 seatId: String(data.seatId || ''),
                 seatToken: String(data.seatToken || ''),
@@ -2644,6 +2919,7 @@
             cannot_build: "you can't build here",
             cannot_mortgage: "you can't mortgage that",
             cannot_pay_bail: "you can't pay bail now",
+            cannot_bribe: "you can't bribe the guard now",
             cannot_borrow: "the Ah Long won't lend to you now",
             cannot_repay: "you can't repay the Ah Long yet",
             not_your_seat: 'this seat belongs to another player',
@@ -2693,6 +2969,9 @@
         function ensureTurnTimer() {
             if (!isOnlineRoom() || !isRoomHost) return;
             const st = authState();
+            // A decided match has no turn left to referee, and a stale timer would run
+            // skipTurn on the final state.
+            if (st.winnerId) { clearTurnTimer(); return; }
             const cur = st.status === 'playing' && st.players.length ? st.players[st.turnIndex % st.players.length] : null;
             if (!cur || cur.isBot) { clearTurnTimer(); return; }
             if (!turnTimer || turnTimer.turnId !== st.turnId || turnTimer.seatId !== cur.id) restartTurnTimer(st);
@@ -2703,7 +2982,7 @@
             turnTimer = null;
             if (!t || !isRoomHost || roomPaused) return;
             const st = authState();
-            if (st.status !== 'playing' || st.turnId !== t.turnId) return;
+            if (st.status !== 'playing' || st.winnerId || st.turnId !== t.turnId) return;
             const cur = st.players[st.turnIndex % st.players.length];
             if (!cur || cur.id !== t.seatId) return;
             const res = PolyEngine.skipTurn(st, t.seatId, t.reason);
@@ -3467,6 +3746,9 @@
         const CHAT_SOUND_GAP_MS = 1500;
         const CHAT_UNREAD_DISPLAY_MAX = 99;
         const CHAT_LIVE_RESTORE_MS = 200;
+        const CHAT_BUBBLE_MAX = 3;
+        const CHAT_BUBBLE_MAX_NARROW = 1;
+        const CHAT_BUBBLE_LIFE_MS = 6000;
         const CHAT_TAB_BASE = 'inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-400';
         const CHAT_TAB_ACTIVE = 'bg-emerald-700 text-white';
         const CHAT_TAB_IDLE = 'text-slate-400 hover:text-white';
@@ -3491,6 +3773,8 @@
         const chatHistoryRequesters = new Set();
         const chatHistoryReplyAt = new Map();
         const chatRecvBuckets = new Map();
+        const chatBubbleTimers = new Map();
+        const chatPendingBubbles = [];
 
         function chatEl(id) { return document.getElementById(id); }
 
@@ -3785,19 +4069,188 @@
                 chatUnread = 0;
                 chatUpdateUnreadBadge();
             }
+            // The thread is on screen now, so the bubbles have done their job.
+            if (chatIsViewing() && chatBubbleTimers.size) chatClearBubbles();
+            else chatFlushPendingBubbles();
             chatUpdateComposer();
         }
 
         // Only live messages from other players reach this. History merges and own messages never do.
-        function chatNoteIncoming() {
+        function chatNoteIncoming(entry) {
             if (chatIsViewing()) return;
             chatUnread += 1;
             chatUpdateUnreadBadge();
+            chatPushBubble(entry);
             const now = Date.now();
             if (now - chatLastSoundAt >= CHAT_SOUND_GAP_MS) {
                 chatLastSoundAt = now;
                 playSoundEffect('chat');
             }
+        }
+
+        // --- Notification bubbles: a message pops in over the board while the thread is closed ---
+
+        // Dismisses one card, whichever path asked for it (timer, close button, the cap, or the stage fit).
+        function chatBubbleDismiss(id) {
+            const timer = chatBubbleTimers.get(id);
+            if (timer) { clearTimeout(timer); chatBubbleTimers.delete(id); }
+            const stack = chatEl('chat-bubble-stack');
+            if (!stack) return;
+            const node = stack.querySelector(`[data-chat-bubble-id="${id}"]`);
+            if (!node || node.dataset.leaving === '1') return;
+            node.dataset.leaving = '1';
+            node.classList.add('chat-bubble-out');
+            setTimeout(() => node.remove(), 160);
+        }
+
+        function chatClearBubbles() {
+            chatBubbleTimers.forEach(t => clearTimeout(t));
+            chatBubbleTimers.clear();
+            chatPendingBubbles.length = 0;
+            const stack = chatEl('chat-bubble-stack');
+            if (stack) stack.replaceChildren();
+        }
+
+        // The sender's own roster color and token identify the bubble, the same way the thread row does.
+        // The whole card is one button that opens the thread; the dismiss control sits beside it rather
+        // than inside it, so no control is nested in another control.
+        function chatBuildBubble(entry) {
+            const who = chatResolveSender(entry);
+            const node = document.createElement('div');
+            node.className = 'chat-bubble relative bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl';
+            node.dataset.chatBubbleId = entry.id;
+
+            const open = document.createElement('button');
+            open.type = 'button';
+            open.dataset.chatBubbleOpen = '1';
+            open.className = 'chat-bubble-open pointer-events-auto block w-full text-left rounded-2xl p-2.5 pr-10 hover:bg-slate-800/60 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400';
+            open.setAttribute('aria-label', `Open chat and reply to ${who.name}: ${entry.text}`);
+
+            const head = document.createElement('div');
+            head.className = 'flex items-center gap-2 min-w-0';
+
+            const chip = document.createElement('span');
+            chip.className = 'w-6 h-6 rounded-full shrink-0 flex items-center justify-center text-white text-[10px]';
+            chip.style.background = who.color;
+            chip.setAttribute('aria-hidden', 'true');
+            const icon = document.createElement('i');
+            const iconClass = Object.prototype.hasOwnProperty.call(TOKEN_ICONS, who.token) ? TOKEN_ICONS[who.token] : 'fa-hat-cowboy';
+            icon.className = `fa-solid ${iconClass}`;
+            chip.appendChild(icon);
+
+            const name = document.createElement('span');
+            name.className = 'truncate text-[11px] font-bold text-slate-100';
+            name.textContent = who.name;
+            name.title = who.name;
+
+            const time = document.createElement('time');
+            time.className = 'chat-bubble-time ml-auto shrink-0 text-[10px] font-mono text-slate-400';
+            time.textContent = chatFormatTime(entry.ts);
+            try { time.dateTime = new Date(entry.ts).toISOString(); } catch (e) {}
+
+            head.append(chip, name, time);
+
+            const text = document.createElement('p');
+            text.className = 'chat-bubble-text chat-selectable mt-1.5 text-xs leading-snug text-slate-200';
+            text.textContent = entry.text;
+
+            // One short cue that the card opens the thread. It is not a second control.
+            const hint = document.createElement('span');
+            hint.className = 'chat-bubble-hint mt-1.5 flex items-center gap-1 text-[10px] font-bold text-emerald-400';
+            hint.setAttribute('aria-hidden', 'true');
+            const hintIcon = document.createElement('i');
+            hintIcon.className = 'fa-solid fa-comment-dots';
+            hint.append(hintIcon, document.createTextNode('Open chat'));
+
+            open.append(head, text, hint);
+            open.addEventListener('click', () => chatBubbleOpen(entry.id));
+
+            const close = document.createElement('button');
+            close.type = 'button';
+            close.dataset.chatBubbleClose = '1';
+            close.className = 'chat-bubble-close pointer-events-auto absolute top-1 right-1 w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400';
+            close.setAttribute('aria-label', `Dismiss message from ${who.name}`);
+            const closeIcon = document.createElement('i');
+            closeIcon.className = 'fa-solid fa-xmark text-xs';
+            closeIcon.setAttribute('aria-hidden', 'true');
+            close.appendChild(closeIcon);
+            close.addEventListener('click', () => chatBubbleDismiss(entry.id));
+
+            node.append(open, close);
+            return node;
+        }
+
+        function chatPushBubble(entry) {
+            if (!entry || !isOnlineRoom()) return;
+            // A dialog covers the sidebar and the stage, so a bubble would be invisible behind it.
+            // The message waits in the queue and pops in when the dialog closes.
+            if (chatSidebarObscured()) {
+                chatPendingBubbles.push(entry);
+                if (chatPendingBubbles.length > CHAT_BUBBLE_MAX) chatPendingBubbles.splice(0, chatPendingBubbles.length - CHAT_BUBBLE_MAX);
+                return;
+            }
+            const stack = chatEl('chat-bubble-stack');
+            if (!stack) return;
+            if (stack.querySelector(`[data-chat-bubble-id="${entry.id}"]`)) return;
+            // A new message pushes the oldest out with the same exit it gets when its time runs out.
+            // On a phone the board is the whole screen, so only the newest card shows.
+            const max = chatBubbleMax();
+            for (;;) {
+                const live = Array.from(stack.children).filter(n => n.dataset.leaving !== '1');
+                if (live.length < max) break;
+                chatBubbleDismiss(live[0].dataset.chatBubbleId);
+            }
+            stack.appendChild(chatBuildBubble(entry));
+            const live = chatEl('chat-bubble-live');
+            if (live) live.textContent = `${chatResolveSender(entry).name}: ${entry.text}`;
+            const timer = setTimeout(() => {
+                chatBubbleTimers.delete(entry.id);
+                chatBubbleDismiss(entry.id);
+            }, CHAT_BUBBLE_LIFE_MS);
+            chatBubbleTimers.set(entry.id, timer);
+            chatBubbleFitStage(stack);
+        }
+
+        // Runs on every chatTick. Queued messages appear once nothing covers the board, oldest first.
+        function chatFlushPendingBubbles() {
+            if (!chatPendingBubbles.length || chatSidebarObscured() || chatIsViewing()) return;
+            const queued = chatPendingBubbles.splice(0, chatPendingBubbles.length);
+            queued.forEach(entry => chatPushBubble(entry));
+        }
+
+        // The stack lives inside the board stage, which clips. Drop the oldest bubbles until the rest fit,
+        // so a phone never shows a card cut off at the stage edge. The newest message always stays.
+        function chatBubbleFitStage(stack) {
+            const stage = stack.parentElement;
+            // No measured height means the layout is not available (a headless DOM or a hidden stage),
+            // so there is nothing to fit against.
+            if (!stage || !stage.clientHeight) return;
+            const room = stage.clientHeight - stack.offsetTop - 8;
+            for (;;) {
+                const live = Array.from(stack.children).filter(n => n.dataset.leaving !== '1');
+                if (live.length <= 1 || stack.offsetHeight <= room) break;
+                chatBubbleDismiss(live[0].dataset.chatBubbleId);
+                stack.removeChild(live[0]);
+            }
+        }
+
+        // One card on a phone, three on a wider screen. Same breakpoint as the stack's own styles.
+        // The constants are read through the function so the cap follows a resize.
+        function chatBubbleMax() {
+            return window.matchMedia && window.matchMedia('(max-width: 1023.98px)').matches
+                ? CHAT_BUBBLE_MAX_NARROW
+                : CHAT_BUBBLE_MAX;
+        }
+        // The bubble is a shortcut into the thread: close whatever covers the sidebar, then switch to Chat.
+        function chatBubbleOpen(id) {
+            chatBubbleDismiss(id);
+            if (!isOnlineRoom()) return;
+            if (chatEl('start-menu-modal') && !chatEl('start-menu-modal').classList.contains('hidden')) closeStartMenuModal();
+            if (chatEl('share-room-modal') && !chatEl('share-room-modal').classList.contains('hidden')) closeShareModal();
+            setLogTab('chat');
+            chatTick();
+            const input = chatEl('chat-input');
+            if (input) input.focus();
         }
 
         // At most 8 messages per 10 s per sender. A modified client cannot flood the list.
@@ -3870,7 +4323,7 @@
             if (chatMessages.length > CHAT_MAX_MESSAGES) chatMessages.splice(0, chatMessages.length - CHAT_MAX_MESSAGES);
             if (chatActiveTab === 'chat') chatAppendRow(entry, isOwn);
             chatSchedulePersist();
-            if (!isOwn) chatNoteIncoming();
+            if (!isOwn) chatNoteIncoming(entry);
             return true;
         }
 
@@ -3939,6 +4392,7 @@
         function chatReset() {
             chatMessages = [];
             chatUnread = 0;
+            chatClearBubbles();
             chatHistoryStatus = 'idle';
             chatHistoryAttempts = 0;
             chatLastHistoryRequestAt = 0;
@@ -3991,6 +4445,7 @@
         function chatInit() {
             const list = chatEl('chat-message-list');
             if (list) list.replaceChildren();
+            chatClearBubbles();
             chatActiveTab = 'activity';
             chatHandleInput();
             chatUpdateUnreadBadge();
@@ -4241,7 +4696,7 @@
             const keptSeats = prior.players
                 .filter(p => p.id === myLocalSeatId || (p.isBot && p.id !== DEFAULT_BOT_SEAT_ID))
                 .map(p => {
-                    const seat = { ...p, cash: startCash, position: 0, inJail: false, jailTurns: 0, bankrupt: false, ready: true, debt: 0, debtDueIn: 0 };
+                    const seat = { ...p, cash: startCash, position: 0, inJail: false, pendingJail: false, jailTurns: 0, bankrupt: false, ready: true, debt: 0, debtDueIn: 0 };
                     if (p.id === myLocalSeatId) seat.tokenHash = fnv1a64(mySeatToken); else delete seat.tokenHash;
                     return seat;
                 });
@@ -4395,7 +4850,8 @@
         };
 
         let hasMatchStartedOnce = false;
-        // The result overlay is dismissed per local view and re-armed whenever a new winner appears.
+        // True only while the lobby is standing in for the result screen after a finished
+        // match, so the result can never be dismissed onto a board with dead controls.
         let matchResultDismissed = false;
         let matchResultSeenFor = null;
 
@@ -4601,11 +5057,49 @@
             });
         }
 
-        function dismissMatchResult() {
-            matchResultDismissed = true;
-            const el = document.getElementById('match-result');
-            if (el) { el.classList.add('hidden'); el.classList.remove('flex'); }
+        // The result screen never closes onto a finished board: its two exits are a new
+        // round, or the lobby where the seats and rules can be changed before one starts.
+        function startNextRound() {
+            if (gameState.winnerId && isOnlineRoom() && !isRoomHost) {
+                showBannerToast('Waiting for the Room Host to start the next round.');
+                return;
+            }
+            matchResultDismissed = false;
+            startMatchFromLobby();
         }
+
+        function openLobbyFromMatchResult() {
+            matchResultDismissed = true;
+            renderAllUI();
+            openStartMenuModal();
+        }
+
+        // The lobby's exit. While a match is live it resumes play; once a match is over it
+        // returns to the result screen, because there is nothing left to resume.
+        function closeLobbyOrShowResult() {
+            if (gameState.winnerId) {
+                closeStartMenuModal();
+                reopenMatchResult();
+                return;
+            }
+            closeStartMenuModal();
+        }
+
+        // Reopens the result from the board console, so the end state is always reachable
+        // even after the player has looked at the lobby.
+        function reopenMatchResult() {
+            if (!gameState.winnerId) return;
+            matchResultDismissed = false;
+            renderAllUI();
+        }
+
+        // Escape on the result screen goes to the lobby, not to a board with no legal moves.
+        function handleMatchResultKeydown(e) {
+            if (e.key !== 'Escape' || matchResultDismissed || !gameState.winnerId) return;
+            e.preventDefault();
+            openLobbyFromMatchResult();
+        }
+        window.handleMatchResultKeydown = handleMatchResultKeydown;
 
         function startMatchFromLobby() {
             if (isOnlineRoom() && !isRoomHost) {
@@ -4638,7 +5132,7 @@
                 st.winReason = null;
                 const startCash = Number(st.rules.startingCash) || 1500;
                 st.players.forEach(p => {
-                    p.cash = startCash; p.position = 0; p.inJail = false; p.jailTurns = 0; p.bankrupt = false;
+                    p.cash = startCash; p.position = 0; p.inJail = false; p.pendingJail = false; p.jailTurns = 0; p.bankrupt = false;
                     p.debt = 0; p.debtDueIn = 0;
                 });
                 PolyEngine.pushLog(st, `🚀 New match started on ${MAP_THEMES[st.mapId].name}!`, 'system');
@@ -4735,7 +5229,12 @@
             }
 
             const closeBtn = document.getElementById('btn-close-start-modal');
-            if (closeBtn) closeBtn.classList.toggle('hidden', !hasMatchStartedOnce);
+            if (closeBtn) {
+                closeBtn.classList.toggle('hidden', !hasMatchStartedOnce);
+                // Once a match is over, leaving the lobby must land on the result screen,
+                // never on a board whose controls the engine would reject.
+                closeBtn.textContent = gameState.winnerId ? 'Back to final result' : 'Resume Current Game';
+            }
 
             const ahlongCb = document.getElementById('rule-ahlong');
             if (ahlongCb) ahlongCb.checked = gameState.rules?.ahlongEnabled !== false;
@@ -4757,7 +5256,8 @@
                     launchBtn.disabled = true;
                     launchBtn.classList.add('opacity-50');
                 } else {
-                    launchBtn.textContent = '🚀 Start Match';
+                    // After a finished match the same control starts the next round.
+                    launchBtn.textContent = gameState.winnerId ? 'Start next round' : '🚀 Start Match';
                     launchBtn.disabled = false;
                     launchBtn.classList.remove('opacity-50');
                 }
@@ -4877,6 +5377,17 @@
             const size = Math.max(290, Math.min(stage.clientWidth - pad, stage.clientHeight - pad, 760));
             grid.style.width = `${size}px`;
             grid.style.height = `${size}px`;
+            // Below ~420px of board the hub's full stack cannot fit, so it switches to the
+            // compact layout rather than clipping the dice console or the reaction strip.
+            const hub = document.getElementById('board-center-hub');
+            if (hub) {
+                hub.classList.toggle('hub-compact', size < 420);
+                // Two tiers: compact folds away repeated blocks, tight additionally shrinks
+                // the dice (and the row gaps) for hubs that are shorter still.
+                hub.classList.toggle('hub-tight', size < 380);
+            }
+            // The strip's scroll width follows the hub width, so re-check its fade here.
+            updateEmoteBarOverflow();
 
             if (threeRenderer && threeCamera) {
                 const container = document.getElementById('three-canvas-container');
@@ -5127,6 +5638,7 @@
         }
         function handleToggleMortgage(tileId) { dispatchSeatAction('mortgage', tileId); }
         function handlePayJailBail() { dispatchSeatAction('bail'); }
+        function handleBribeGuard() { dispatchSeatAction('bribe'); }
         function handleBorrowAhLong() { dispatchSeatAction('borrow'); }
         function handleRepayAhLong() { dispatchSeatAction('repay'); }
         function handleEndTurn() { dispatchSeatAction('end'); }
@@ -5182,7 +5694,7 @@
         function handleEmotePacket(data) {
             const e = data && data.emote;
             if (!e || typeof e !== 'object') return;
-            if (!PREDEFINED_EMOTES.includes(e.emoji)) return;
+            if (!RECEIVABLE_EMOTES.has(e.emoji)) return;
             const seat = gameState.players.find(p => p.id === String(e.seatId || ''));
             const sender = seat ? seat.name : (netCleanText(e.name) || 'Spectator');
             const color = seat ? seat.color : netCleanColor(e.color, '#10b981');
@@ -5216,14 +5728,51 @@
         // =====================================================================
         // EMOTES, TITLE DEED INSPECTOR & UI RENDERING
         // =====================================================================
-        const PREDEFINED_EMOTES = ['🎲', '💸', '🔥', '😂', '👑', '🤝', '🚀', '😱'];
+        // Reactions mix emoji with short word chips, because a table of friends talks in
+        // both. The list is also the allow-list for the network path: anything not in it
+        // is dropped by handleEmotePacket, so a tampered packet cannot put text on screen.
+        const PREDEFINED_EMOTES = ['GG', 'Skill issue', 'cooked', 'rent free', '🎲', '💸', '🔥', '😂'];
+
+        // The game ships as a downloadable single file, so a room can mix copies. Older
+        // copies still send the emoji-only set; accept those on receive so their reactions
+        // are not silently dropped. The bar itself only offers the current list.
+        const LEGACY_EMOTES = ['🎲', '💸', '🔥', '😂', '👑', '🤝', '🚀', '😱'];
+        const RECEIVABLE_EMOTES = new Set([...PREDEFINED_EMOTES, ...LEGACY_EMOTES]);
+
+        // On a phone the strip is one scrolling row, so mark it when chips sit past the
+        // right edge. The fade in CSS only appears then, never on a strip that fits.
+        function updateEmoteBarOverflow() {
+            const bar = document.getElementById('emote-bar-container');
+            if (!bar) return;
+            const more = bar.scrollWidth - bar.clientWidth - bar.scrollLeft > 2;
+            bar.classList.toggle('emote-bar-more', more);
+        }
 
         function renderPredefinedEmotes() {
             const bar = document.getElementById('emote-bar-container');
             if (!bar) return;
-            bar.innerHTML = PREDEFINED_EMOTES.map(emoji => `
-                <button onclick="sendQuickEmote('${emoji}')" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg hover:bg-slate-800 flex items-center justify-center text-sm sm:text-base transition transform hover:scale-110">${emoji}</button>
-            `).join('');
+            bar.innerHTML = '';
+            // Built as nodes, not inline markup, so a label with a quote or bracket can
+            // never break out of an attribute.
+            PREDEFINED_EMOTES.forEach(label => {
+                const isEmoji = /\p{Extended_Pictographic}/u.test(label);
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.dataset.emote = label;
+                btn.setAttribute('aria-label', `Send ${label}`);
+                btn.title = `Send ${label}`;
+                btn.className = isEmoji
+                    // Emoji reads as a one-tap reaction: square, no border.
+                    ? 'emote-btn emote-btn-glyph w-7 h-7 sm:w-8 sm:h-8 rounded-lg hover:bg-slate-800 flex items-center justify-center text-sm sm:text-base transition hover:scale-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400'
+                    // A word chip reads as banter: padded and bordered, like a typed reply.
+                    : 'emote-btn emote-btn-word h-7 sm:h-8 px-1.5 sm:px-2 rounded-lg border border-slate-700 bg-slate-800/70 hover:bg-slate-700 text-[10px] sm:text-[11px] font-bold text-slate-200 whitespace-nowrap transition hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-400';
+                btn.textContent = label;
+                btn.addEventListener('click', () => sendQuickEmote(label));
+                bar.appendChild(btn);
+            });
+            bar.addEventListener('scroll', updateEmoteBarOverflow, { passive: true });
+            // Widths are zero until the hub has been laid out, so measure after the frame.
+            requestAnimationFrame(updateEmoteBarOverflow);
         }
 
         // Emotes are a lightweight message: they carry no game state and never
@@ -5243,13 +5792,17 @@
             const container = document.getElementById('floating-emote-container');
             if (!container || !emote) return;
             const el = document.createElement('div');
-            el.className = 'floating-emote-anim bg-slate-900/95 border border-slate-700 px-4 py-2 rounded-2xl shadow-2xl flex items-center gap-2';
+            el.className = 'floating-emote-anim bg-slate-900/95 border border-slate-700 px-4 py-2 rounded-2xl shadow-2xl flex items-center gap-2 max-w-[min(90vw,320px)]';
             // Emoji and sender arrive from the network with a float effect, so both go in as text.
+            const text = String(emote.emoji ?? '');
             const emojiEl = document.createElement('span');
-            emojiEl.className = 'text-xl sm:text-2xl font-black';
-            emojiEl.textContent = String(emote.emoji ?? '');
+            // A word reaction is set smaller than a single glyph so it stays on one line.
+            emojiEl.className = /\p{Extended_Pictographic}/u.test(text)
+                ? 'text-xl sm:text-2xl font-black'
+                : 'text-sm sm:text-base font-black whitespace-nowrap';
+            emojiEl.textContent = text;
             const senderEl = document.createElement('span');
-            senderEl.className = 'text-xs font-extrabold';
+            senderEl.className = 'text-xs font-extrabold truncate';
             senderEl.style.color = netCleanColor(emote.color, '#fff');
             senderEl.textContent = netCleanText(emote.sender);
             el.append(emojiEl, senderEl);
@@ -5297,6 +5850,8 @@
             const current = getCurrentPlayer();
             const isMine = canLocalUserAct() && current && prop?.owner === current.id;
             const canManageHere = isMine && gameState.turnPhase === 'END';
+            // Mortgaging stays available at the Jail gate so the seat can raise the bribe.
+            const canBuildHere = canManageHere && !current?.pendingJail;
             const houses = prop?.houses || 0;
 
             panel.innerHTML = `
@@ -5322,7 +5877,7 @@
                             <div class="flex justify-between ${houses === 5 ? 'text-amber-400 font-bold' : 'text-slate-400'}"><span>HOTEL 🏨</span><span>$${tile.rent[5]}</span></div>
                         </div>
                         <div class="flex gap-1.5 pt-1">
-                            ${canManageHere && !prop.mortgaged && houses < 5 && current.cash >= (tile.houseCost || 100) ? `
+                            ${canBuildHere && !prop.mortgaged && houses < 5 && current.cash >= (tile.houseCost || 100) ? `
                                 <button onclick="handleUpgradeCurrentTile(${tile.id})" class="flex-1 py-1.5 rounded-xl bg-sky-400 hover:bg-sky-300 text-slate-950 font-black text-xs transition">
                                     🔨 Build ($${tile.houseCost})
                                 </button>
@@ -5333,6 +5888,20 @@
                                 </button>
                             ` : ''}
                         </div>
+                    ` : tile.type === 'jail' ? `
+                        <div class="flex justify-between items-center bg-slate-900/60 px-2.5 py-1.5 rounded-lg font-mono text-[11px]">
+                            <span class="text-slate-400">Gate bribe</span>
+                            <span class="font-extrabold text-amber-300">$${PolyEngine.scaledCash(gameState, BRIBE_COST)} • 50%</span>
+                        </div>
+                        <div class="flex justify-between items-center bg-slate-900/60 px-2.5 py-1.5 rounded-lg font-mono text-[11px]">
+                            <span class="text-slate-400">Cell bribe</span>
+                            <span class="font-extrabold text-amber-300">$${PolyEngine.scaledCash(gameState, CELL_BRIBE_COST)} • certain</span>
+                        </div>
+                        <div class="flex justify-between items-center bg-slate-900/60 px-2.5 py-1.5 rounded-lg font-mono text-[11px]">
+                            <span class="text-slate-400">Bail or serve</span>
+                            <span class="font-extrabold text-slate-200">$${PolyEngine.scaledCash(gameState, 50)} • ${JAIL_TURNS_TO_SERVE} turns</span>
+                        </div>
+                        <p class="text-[11px] text-slate-400 px-1">Go To Jail and the jail card stop at the gate. Inside, bail is paid instead of rolling, and the cell bribe buys the roll back.</p>
                     ` : tile.type === 'tax' ? `
                         <div class="flex justify-between items-center bg-slate-900/60 px-2.5 py-1.5 rounded-lg font-mono text-[11px]">
                             <span class="text-slate-400">Tax due</span>
@@ -5364,8 +5933,25 @@
             if (potEl) potEl.textContent = gameState.freeParkingPot || 0;
 
             const subEl = document.getElementById('center-status-subtitle');
-            if (subEl && current) {
-                subEl.textContent = `${current.name}'s Turn • ${gameState.turnPhase === 'ROLL' ? 'Tap Dice or Roll to Move' : 'Buy, Build, or End Turn'}`;
+            if (subEl) {
+                if (gameState.winnerId) {
+                    const champ = gameState.players.find(p => p.id === gameState.winnerId);
+                    subEl.textContent = champ
+                        ? `Match over. ${champ.name} won. Start the next round from the lobby.`
+                        : 'Match over. Start the next round from the lobby.';
+                } else if (current) {
+                    if (current.pendingJail) {
+                        subEl.textContent = `${current.name} is at the Jail gate: bribe the guard or serve time`;
+                    } else if (current.inJail && gameState.turnPhase === 'END') {
+                        subEl.textContent = (current.jailTurns || 0) >= 1
+                            ? `${current.name} is locked up: bribe the cell guard or end the turn`
+                            : `${current.name} is locked up for the rest of the turn`;
+                    } else if (current.inJail) {
+                        subEl.textContent = `${current.name} is in Jail: roll doubles, pay bail, or bribe`;
+                    } else {
+                        subEl.textContent = `${current.name}'s Turn • ${gameState.turnPhase === 'ROLL' ? 'Tap Dice or Roll to Move' : 'Buy, Build, or End Turn'}`;
+                    }
+                }
             }
 
             const phaseBadge = document.getElementById('turn-phase-badge');
@@ -5390,6 +5976,7 @@
                 }
                 const resultWinner = gameState.winnerId ? gameState.players.find(p => p.id === gameState.winnerId) : null;
                 if (resultWinner && !matchResultDismissed) {
+                    const wasHidden = resultEl.classList.contains('hidden');
                     const titleEl = document.getElementById('match-result-title');
                     if (titleEl) titleEl.textContent = `${resultWinner.name} wins!`;
                     const bodyEl = document.getElementById('match-result-body');
@@ -5401,8 +5988,25 @@
                         const ranked = gameState.players.slice().sort((a, b) => PolyEngine.netWorth(gameState, b) - PolyEngine.netWorth(gameState, a));
                         tableEl.innerHTML = ranked.map((p, i) => `<div class="flex justify-between gap-3 ${p.id === resultWinner.id ? 'text-emerald-300 font-bold' : ''}"><span class="truncate">${i + 1}. ${escapeHtml(p.name)}${p.bankrupt ? ' (bust)' : ''}</span><span>$${PolyEngine.netWorth(gameState, p)}</span></div>`).join('');
                     }
+                    // A guest cannot start a round, so its primary action says what it waits for.
+                    const nextBtn = document.getElementById('btn-start-next-round');
+                    const guestNote = document.getElementById('match-result-guest-note');
+                    const guestHere = isOnlineRoom() && !isRoomHost;
+                    if (nextBtn) {
+                        nextBtn.textContent = guestHere ? 'Waiting for host to start' : 'Start next round';
+                        nextBtn.disabled = guestHere;
+                        nextBtn.classList.toggle('opacity-50', guestHere);
+                        nextBtn.classList.toggle('cursor-not-allowed', guestHere);
+                    }
+                    if (guestNote) guestNote.classList.toggle('hidden', !guestHere);
                     resultEl.classList.remove('hidden');
                     resultEl.classList.add('flex');
+                    // Move focus into the dialog once, so keyboard users land on the choice
+                    // instead of tabbing through the board behind it.
+                    if (wasHidden && !guestHere) {
+                        const firstBtn = document.getElementById('btn-start-next-round');
+                        if (firstBtn && typeof firstBtn.focus === 'function') firstBtn.focus();
+                    }
                 } else {
                     resultEl.classList.add('hidden');
                     resultEl.classList.remove('flex');
@@ -5418,7 +6022,8 @@
                     <div class="min-w-0 flex-1">
                         <div class="font-extrabold text-sm truncate flex items-center gap-1.5">
                             <span>${current.name}</span>
-                            ${current.inJail ? '<span class="text-[10px] px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300">JAIL</span>' : ''}
+                            ${current.inJail ? `<span class="text-[10px] px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300">JAIL ${Math.min((current.jailTurns || 0) + 1, JAIL_TURNS_TO_SERVE)}/${JAIL_TURNS_TO_SERVE}</span>` : ''}
+                            ${current.pendingJail ? '<span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300">GATE</span>' : ''}
                         </div>
                         <div class="text-xs text-emerald-400 font-mono font-bold">$${current.cash}</div>
                         ${current.debt > 0 ? `<div class="text-[10px] text-rose-300 font-mono font-bold">🕴️ Ah Long: $${current.debt} • ${current.debtDueIn} turns left</div>` : ''}
@@ -5431,14 +6036,24 @@
             // same scaled numbers the engine charges.
             const scaleMoney = (base) => PolyEngine.scaledCash(gameState, base);
             const bailCost = scaleMoney(50);
+            const bribeCost = scaleMoney(BRIBE_COST);
+            const cellBribeCost = scaleMoney(CELL_BRIBE_COST);
             const loanAmount = scaleMoney(AHLONG_LOAN_AMOUNT);
             const borrowThreshold = scaleMoney(AHLONG_CASH_THRESHOLD);
             const curTile = current ? BOARD_TILES[current.position] : null;
             const curProp = curTile ? gameState.properties[curTile.id] : null;
             const showRoll = gameState.turnPhase === 'ROLL';
-            const canBuy = canAct && !current?.isBot && gameState.turnPhase === 'END' && curTile && ['property', 'railroad', 'utility'].includes(curTile.type) && !curProp && current.cash >= curTile.price;
-            const canBuild = canAct && !current?.isBot && curTile && curTile.type === 'property' && curProp?.owner === current?.id && !curProp.mortgaged && (curProp.houses || 0) < 5 && current.cash >= (curTile.houseCost || 100);
-            const showBail = canAct && !current?.isBot && Boolean(current?.inJail) && current.cash >= bailCost;
+            const atJailGate = Boolean(current?.pendingJail) && gameState.turnPhase === 'END';
+            const inJailCell = Boolean(current?.inJail) && !current?.pendingJail;
+            const canBuy = canAct && !current?.isBot && !atJailGate && gameState.turnPhase === 'END' && curTile && ['property', 'railroad', 'utility'].includes(curTile.type) && !curProp && current.cash >= curTile.price;
+            const canBuild = canAct && !current?.isBot && !atJailGate && curTile && curTile.type === 'property' && curProp?.owner === current?.id && !curProp.mortgaged && (curProp.houses || 0) < 5 && current.cash >= (curTile.houseCost || 100);
+            // Bail is paid instead of rolling, so it lives on the ROLL phase.
+            const showBail = canAct && !current?.isBot && inJailCell && showRoll && current.cash >= bailCost;
+            // The bribe has two prices: the gate gamble before the roll, and the certain
+            // (dearer) cell deal that buys the spent roll back.
+            const bribePrice = inJailCell ? cellBribeCost : bribeCost;
+            const canBribeCell = inJailCell && !showRoll && (current?.jailTurns || 0) >= 1;
+            const canBribe = canAct && !current?.isBot && (atJailGate || canBribeCell) && current.cash >= bribePrice;
             // Ah Long: one loan at a time, offered only to a seat that is nearly broke.
             const canBorrow = canAct && !current?.isBot && gameState.rules?.ahlongEnabled !== false && !(current?.debt > 0) && (current?.cash ?? 0) < borrowThreshold;
             const canRepay = canAct && !current?.isBot && (current?.debt || 0) > 0 && current.cash >= current.debt;
@@ -5447,45 +6062,79 @@
             const buyBtn = document.getElementById('btn-buy-property');
             const buildBtn = document.getElementById('btn-build-house');
             const bailBtn = document.getElementById('btn-pay-bail');
+            const bribeBtn = document.getElementById('btn-bribe-guard');
             const borrowBtn = document.getElementById('btn-borrow-ahlong');
             const repayBtn = document.getElementById('btn-repay-ahlong');
             const endBtn = document.getElementById('btn-end-turn');
+            const resultBtn = document.getElementById('btn-show-match-result');
 
-            if (rollBtn) { rollBtn.disabled = !canAct || !showRoll || Boolean(current?.isBot); rollBtn.classList.toggle('hidden', !showRoll); }
-            if (endBtn) { endBtn.disabled = !canAct || Boolean(current?.isBot); endBtn.classList.toggle('hidden', showRoll); }
+            // A finished match has no legal moves, so the console offers the result instead
+            // of a row of controls that the engine would reject.
+            const matchOver = Boolean(gameState.winnerId);
+            if (resultBtn) resultBtn.classList.toggle('hidden', !matchOver);
+            document.getElementById('dice-stage-2d')?.classList.toggle('hidden', matchOver);
+
+            if (rollBtn) { rollBtn.disabled = !canAct || !showRoll || Boolean(current?.isBot); rollBtn.classList.toggle('hidden', matchOver || !showRoll); }
+            if (endBtn) { endBtn.disabled = !canAct || Boolean(current?.isBot); endBtn.classList.toggle('hidden', matchOver || showRoll); }
             if (buyBtn) {
-                buyBtn.classList.toggle('hidden', !canBuy);
+                buyBtn.classList.toggle('hidden', matchOver || !canBuy);
                 const lbl = document.getElementById('btn-buy-label');
                 if (lbl && curTile) lbl.textContent = `Buy ${curTile.name} ($${curTile.price})`;
             }
             if (buildBtn) {
-                buildBtn.classList.toggle('hidden', !canBuild);
+                buildBtn.classList.toggle('hidden', matchOver || !canBuild);
                 const lbl = document.getElementById('btn-build-label');
                 if (lbl && curTile) lbl.textContent = `Build ($${curTile.houseCost})`;
             }
             if (bailBtn) {
-                bailBtn.classList.toggle('hidden', !showBail);
+                bailBtn.classList.toggle('hidden', matchOver || !showBail);
                 const lbl = document.getElementById('btn-bail-label');
                 if (lbl) lbl.textContent = `Pay $${bailCost} Bail`;
             }
+            if (bribeBtn) {
+                bribeBtn.classList.toggle('hidden', matchOver || !canBribe);
+                const lbl = document.getElementById('btn-bribe-label');
+                if (lbl) lbl.textContent = canBribeCell ? `Bribe Cell Guard $${cellBribeCost}` : `Bribe Guard $${bribeCost} (50%)`;
+                bribeBtn.title = canBribeCell
+                    ? 'Certain release, but the guard keeps the money either way'
+                    : '50% chance the guard takes the money and jails you anyway';
+            }
+            if (endBtn) {
+                const lbl = document.getElementById('btn-end-label');
+                if (lbl) lbl.textContent = atJailGate ? 'SERVE TIME' : 'END TURN';
+            }
             if (borrowBtn) {
-                borrowBtn.classList.toggle('hidden', !canBorrow);
+                borrowBtn.classList.toggle('hidden', matchOver || !canBorrow);
                 const lbl = document.getElementById('btn-borrow-ahlong-label');
                 if (lbl) lbl.textContent = `Borrow $${loanAmount} from Ah Long`;
             }
             if (repayBtn) {
-                repayBtn.classList.toggle('hidden', !canRepay);
+                repayBtn.classList.toggle('hidden', matchOver || !canRepay);
                 const lbl = document.getElementById('btn-repay-ahlong-label');
                 if (lbl && current) lbl.textContent = `Repay $${current.debt} to Ah Long`;
             }
 
             // Sync 3D Dock Buttons
-            document.getElementById('btn-3d-roll')?.classList.toggle('hidden', !showRoll);
-            document.getElementById('btn-3d-end')?.classList.toggle('hidden', showRoll);
-            document.getElementById('btn-3d-buy')?.classList.toggle('hidden', !canBuy);
-            document.getElementById('btn-3d-build')?.classList.toggle('hidden', !canBuild);
-            document.getElementById('btn-3d-borrow')?.classList.toggle('hidden', !canBorrow);
-            document.getElementById('btn-3d-repay')?.classList.toggle('hidden', !canRepay);
+            document.getElementById('btn-3d-result')?.classList.toggle('hidden', !matchOver);
+            document.getElementById('dice-3d-dock-box')?.classList.toggle('hidden', matchOver);
+            document.getElementById('btn-3d-roll')?.classList.toggle('hidden', matchOver || !showRoll);
+            document.getElementById('btn-3d-end')?.classList.toggle('hidden', matchOver || showRoll);
+            document.getElementById('btn-3d-buy')?.classList.toggle('hidden', matchOver || !canBuy);
+            document.getElementById('btn-3d-build')?.classList.toggle('hidden', matchOver || !canBuild);
+            document.getElementById('btn-3d-bail')?.classList.toggle('hidden', matchOver || !showBail);
+            document.getElementById('btn-3d-bribe')?.classList.toggle('hidden', matchOver || !canBribe);
+            document.getElementById('btn-3d-borrow')?.classList.toggle('hidden', matchOver || !canBorrow);
+            document.getElementById('btn-3d-repay')?.classList.toggle('hidden', matchOver || !canRepay);
+            const bail3dLbl = document.getElementById('btn-3d-bail-label');
+            if (bail3dLbl) bail3dLbl.textContent = `Bail $${bailCost}`;
+            const bribe3d = document.getElementById('btn-3d-bribe');
+            const bribe3dLbl = document.getElementById('btn-3d-bribe-label');
+            if (bribe3dLbl) bribe3dLbl.textContent = canBribeCell ? `Bribe $${cellBribeCost}` : `Bribe $${bribeCost} 50%`;
+            if (bribe3d) bribe3d.title = canBribeCell
+                ? 'Certain release, but the guard keeps the money either way'
+                : '50% chance the guard takes the money and jails you anyway';
+            const end3dLbl = document.getElementById('btn-3d-end-label');
+            if (end3dLbl) end3dLbl.textContent = atJailGate ? 'SERVE TIME' : 'END TURN';
             const buy3dLbl = document.getElementById('btn-3d-buy-label');
             if (buy3dLbl && curTile) buy3dLbl.textContent = `Buy ($${curTile.price})`;
             const borrow3dLbl = document.getElementById('btn-3d-borrow-label');
@@ -5513,6 +6162,8 @@
                                         <span>${p.name}</span>
                                         ${p.id === myLocalSeatId && isOnlineRoom() ? '<span class="text-[9px] px-1 rounded bg-sky-500/20 text-sky-300">YOU</span>' : ''}
                                         ${p.isBot ? '<span class="text-[9px] px-1 rounded bg-purple-500/20 text-purple-300">BOT</span>' : ''}
+                                        ${p.pendingJail ? '<span class="text-[9px] px-1 rounded bg-amber-500/20 text-amber-300">GATE</span>' : ''}
+                                        ${p.inJail ? `<span class="text-[9px] px-1 rounded bg-rose-500/20 text-rose-300">JAIL ${Math.min((p.jailTurns || 0) + 1, JAIL_TURNS_TO_SERVE)}/${JAIL_TURNS_TO_SERVE}</span>` : ''}
                                     </div>
                                     <div class="text-[10px] text-slate-400">${BOARD_TILES[p.position || 0]?.name || 'GO'} • ${propCount} deeds</div>
                                 </div>
@@ -5614,6 +6265,7 @@
                 ro.observe(stageArea);
             }
             window.addEventListener('resize', updateBoardDimensions);
+            document.addEventListener('keydown', handleMatchResultKeydown);
 
             chatInit();
             installMultiplayerGuards();

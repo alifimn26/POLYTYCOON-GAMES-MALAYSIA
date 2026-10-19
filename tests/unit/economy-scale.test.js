@@ -146,7 +146,8 @@ describe('economy scale', () => {
     await startLocalMatch(g, ['human', 'bot']);
     g.win.eval(`(function(){
       gameState.turnIndex = 0;
-      gameState.turnPhase = 'END';
+      // Bail is paid instead of rolling, so it is offered on the ROLL phase.
+      gameState.turnPhase = 'ROLL';
       gameState.rules.startingCash = 5000;
       const p = gameState.players[0];
       p.inJail = true;

@@ -140,7 +140,7 @@ describe('match length', () => {
     g.close();
   });
 
-  it('shows the result overlay with the winner, and closes on demand', async () => {
+  it('shows the result overlay with the winner and offers both exits', async () => {
     const g = await loadGame();
     await startLocalMatch(g, ['human', 'bot']);
     const winner = g.state.players[0];
@@ -153,12 +153,70 @@ describe('match length', () => {
     expect(overlay.classList.contains('hidden')).toBe(false);
     expect(g.byId('match-result-title').textContent).toBe(`${winner.name} wins!`);
     expect(g.byId('match-result-table').textContent).toContain(winner.name);
+    expect(g.byId('btn-start-next-round').disabled).toBe(false);
+    expect(g.byId('match-result-guest-note').classList.contains('hidden')).toBe(true);
 
-    g.win.dismissMatchResult();
+    // Back to lobby hides the result and opens the lobby, where the next round starts.
+    g.byId('btn-match-to-lobby').click();
+    await g.settle(0);
     expect(overlay.classList.contains('hidden')).toBe(true);
-    // A re-render with the same winner must not pop the overlay back open.
+    expect(g.byId('start-menu-modal').classList.contains('hidden')).toBe(false);
+    expect(g.byId('btn-launch-match').textContent).toBe('Start next round');
+    g.close();
+  });
+
+  it('starts the next round from the result screen', async () => {
+    const g = await loadGame();
+    await startLocalMatch(g, ['human', 'bot']);
+    g.win.eval(`(function(){
+      gameState.winnerId = 'p1';
+      gameState.winReason = 'last_standing';
+      gameState.players[0].cash = 12;
+      gameState.players[0].position = 7;
+      gameState.players[1].bankrupt = true;
+      gameState.properties['1'] = { owner: 'p1', houses: 0, mortgaged: false };
+    })()`);
     g.win.renderAllUI();
-    expect(overlay.classList.contains('hidden')).toBe(true);
+    g.byId('btn-start-next-round').click();
+    await g.settle(0);
+    expect(g.state.winnerId).toBeNull();
+    expect(g.state.status).toBe('playing');
+    expect(g.state.players[0].cash).toBe(g.state.rules.startingCash);
+    expect(g.state.players[0].position).toBe(0);
+    expect(g.state.players[1].bankrupt).toBe(false);
+    expect(Object.keys(g.state.properties).length).toBe(0);
+    expect(g.byId('match-result').classList.contains('hidden')).toBe(true);
+    g.close();
+  });
+
+  it('leaves a finished board with no dead controls, only the result action', async () => {
+    const g = await loadGame();
+    await startLocalMatch(g, ['human', 'bot']);
+    g.win.eval(`(function(){ gameState.winnerId = 'p1'; gameState.winReason = 'last_standing'; })()`);
+    g.win.renderAllUI();
+    expect(g.byId('btn-roll-dice').classList.contains('hidden')).toBe(true);
+    expect(g.byId('btn-end-turn').classList.contains('hidden')).toBe(true);
+    expect(g.byId('btn-buy-property').classList.contains('hidden')).toBe(true);
+    expect(g.byId('btn-show-match-result').classList.contains('hidden')).toBe(false);
+    expect(g.byId('center-status-subtitle').textContent).toMatch(/match over/i);
+
+    // Reopening from the board console brings the result back.
+    g.byId('btn-show-match-result').click();
+    await g.settle(0);
+    expect(g.byId('match-result').classList.contains('hidden')).toBe(false);
+    g.close();
+  });
+
+  it('sends Escape on the result screen to the lobby instead of a dead board', async () => {
+    const g = await loadGame();
+    await startLocalMatch(g, ['human', 'bot']);
+    g.win.eval(`(function(){ gameState.winnerId = 'p1'; gameState.winReason = 'last_standing'; })()`);
+    g.win.renderAllUI();
+    const ev = new g.win.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    g.doc.dispatchEvent(ev);
+    await g.settle(0);
+    expect(g.byId('match-result').classList.contains('hidden')).toBe(true);
+    expect(g.byId('start-menu-modal').classList.contains('hidden')).toBe(false);
     g.close();
   });
 
