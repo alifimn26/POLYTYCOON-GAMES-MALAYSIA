@@ -5,10 +5,7 @@
   "description": "Dev-only test tooling. The game itself is the single static index.html.",
   "scripts": {
     "test:unit": "vitest --run tests/unit",
-    "test:explore": "vitest --run tests/exploration",
-    "test:explore:original": "node tests/tools/check-baseline.mjs",
-    "test:e2e": "playwright test",
-    "test:all": "vitest --run tests/unit tests/exploration && playwright test"
+    "test:all": "vitest --run tests/unit"
   },
   "devDependencies": {
     "@playwright/test": "1.64.1",

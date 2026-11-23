@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PolyTycoon 3D/2D — Multiplayer Board Game</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2310b981'/%3E%3Ctext x='16' y='22' text-anchor='middle' font-size='15' font-family='sans-serif' font-weight='700' fill='%23030712'%3EPT%3C/text%3E%3C/svg%3E">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
@@ -1092,7 +1093,7 @@
         const ECONOMY_BASELINE_CASH = 1500;
         const ENGINE_LOG_TYPES = ['system', 'event', 'move', 'cash', 'tax', 'buy'];
         const ENGINE_SOUNDS = ['buy', 'roll', 'jail', 'tax', 'step'];
-        const ENGINE_EVENT_KINDS = ['roll', 'buy', 'build', 'mortgage', 'bail', 'bribe', 'end', 'skip', 'borrow', 'repay'];
+        const ENGINE_EVENT_KINDS = ['roll', 'buy', 'build', 'sellhouse', 'mortgage', 'bail', 'bribe', 'end', 'skip', 'borrow', 'repay'];
         const ENGINE_SEAT_ID = /^[A-Za-z0-9_-]{1,40}$/;
         // The one AI bot a fresh local state starts with. Hosting a multiplayer room
         // drops this seat but keeps any bot the host added on purpose.
@@ -1189,7 +1190,7 @@
                     const prop = st.properties[tid];
                     const tile = tiles[Number(tid)];
                     if (!prop || !tile || prop.owner !== p.id) return;
-                    worth += prop.mortgaged ? Math.floor((tile.price || 0) / 2) : (tile.price || 0) + (prop.houses || 0) * (tile.houseCost || 0);
+                    worth += deedWorth(tile, prop);
                 });
                 return worth;
             }
@@ -1229,9 +1230,271 @@
                 return false;
             }
 
+            // Per-deed figure shared with net worth. A mortgaged deed is worth the
+            // mortgage (half the list price). An open deed is the list price plus
+            // buildings at their build cost.
+            function deedWorth(tile, prop) {
+                if (!tile || !prop) return 0;
+                if (prop.mortgaged) return Math.floor((Number(tile.price) || 0) / 2);
+                const houses = tile.type === 'property' ? (Number(prop.houses) || 0) : 0;
+                return (Number(tile.price) || 0) + houses * (Number(tile.houseCost) || 0);
+            }
+
+            function houseRefund(tile) {
+                return Math.floor((Number(tile && tile.houseCost) || 0) / 2);
+            }
+
+            function mortgageProceeds(tile) {
+                return Math.floor((Number(tile && tile.price) || 0) / 2);
+            }
+
+            // Colour-group mates. Railroads and utilities are not a building set.
+            function colorMates(st, tile) {
+                if (!tile || tile.type !== 'property') return [];
+                return theme(st).tiles.filter(t => t.type === 'property' && t.color === tile.color);
+            }
+
+            function canBuildOn(st, ownerId, tile, prop) {
+                if (!tile || tile.type !== 'property' || !prop || prop.owner !== ownerId || prop.mortgaged) return false;
+                if ((prop.houses || 0) >= 5) return false;
+                const mates = colorMates(st, tile);
+                if (!mates.length) return false;
+                for (let i = 0; i < mates.length; i++) {
+                    const owned = st.properties[mates[i].id];
+                    if (!owned || owned.owner !== ownerId || owned.mortgaged) return false;
+                }
+                const minH = Math.min.apply(null, mates.map(t => st.properties[t.id].houses || 0));
+                return (prop.houses || 0) === minH;
+            }
+
+            function canSellHouseOn(st, ownerId, tile, prop) {
+                if (!tile || tile.type !== 'property' || !prop || prop.owner !== ownerId) return false;
+                const houses = prop.houses || 0;
+                if (houses <= 0) return false;
+                const mates = colorMates(st, tile);
+                let maxH = 0;
+                for (let i = 0; i < mates.length; i++) {
+                    const owned = st.properties[mates[i].id];
+                    if (owned && owned.owner === ownerId) maxH = Math.max(maxH, owned.houses || 0);
+                }
+                return houses === maxH;
+            }
+
+            // Houses anywhere in a colour set block every mortgage in that set.
+            function mortgageBlockedByHouses(st, ownerId, tile) {
+                if (!tile) return false;
+                if ((st.properties[tile.id]?.houses || 0) > 0) return true;
+                if (tile.type !== 'property') return false;
+                return colorMates(st, tile).some(t => {
+                    const owned = st.properties[t.id];
+                    return owned && owned.owner === ownerId && (owned.houses || 0) > 0;
+                });
+            }
+
+            function bestHouseToSell(st, ownerId) {
+                const tiles = theme(st).tiles;
+                let best = null;
+                for (let i = 0; i < tiles.length; i++) {
+                    const tile = tiles[i];
+                    const prop = st.properties[tile.id];
+                    if (!canSellHouseOn(st, ownerId, tile, prop)) continue;
+                    const refund = houseRefund(tile);
+                    if (!best || refund < best.refund || (refund === best.refund && tile.id < best.tile.id)) {
+                        best = { tile, prop, refund };
+                    }
+                }
+                return best;
+            }
+
+            function cheapestToMortgage(st, ownerId) {
+                const tiles = theme(st).tiles;
+                let best = null;
+                for (let i = 0; i < tiles.length; i++) {
+                    const tile = tiles[i];
+                    const prop = st.properties[tile.id];
+                    if (!prop || prop.owner !== ownerId || prop.mortgaged) continue;
+                    if (mortgageBlockedByHouses(st, ownerId, tile)) continue;
+                    const proceeds = mortgageProceeds(tile);
+                    if (!best || proceeds < best.proceeds || (proceeds === best.proceeds && tile.id < best.tile.id)) {
+                        best = { tile, prop, proceeds };
+                    }
+                }
+                return best;
+            }
+
+            // Cash in hand, plus houses at half cost, plus mortgage proceeds.
+            function raiseCapacity(st, p) {
+                if (!p) return 0;
+                let total = Math.max(0, Number(p.cash) || 0);
+                const tiles = theme(st).tiles;
+                Object.keys(st.properties).forEach(k => {
+                    const prop = st.properties[k];
+                    const tile = tiles[Number(k)];
+                    if (!prop || !tile || prop.owner !== p.id) return;
+                    if (tile.type === 'property' && (prop.houses || 0) > 0) total += (prop.houses || 0) * houseRefund(tile);
+                    if (!prop.mortgaged) total += mortgageProceeds(tile);
+                });
+                return total;
+            }
+
+            function payeeName(st, creditorId) {
+                if (!creditorId) return 'the bank';
+                const owner = findP(st, creditorId);
+                return owner ? owner.name : 'the bank';
+            }
+
+            function payCreditor(st, creditorId, amount) {
+                amount = Math.max(0, Math.trunc(Number(amount) || 0));
+                if (!amount) return;
+                const owner = creditorId ? findP(st, creditorId) : null;
+                if (owner && !owner.bankrupt) { owner.cash += amount; return; }
+                if (st.rules.freeParkingJackpot) st.freeParkingPot = (Number(st.freeParkingPot) || 0) + amount;
+            }
+
+            function settlePayment(st, player, amount, creditorId, fx, kind, tileName) {
+                amount = Math.max(0, Math.trunc(Number(amount) || 0));
+                if ((player.cash || 0) < amount) return;
+                player.cash -= amount;
+                payCreditor(st, creditorId, amount);
+                if (kind === 'rent') {
+                    const owner = findP(st, creditorId);
+                    const who = owner ? owner.name : 'the bank';
+                    fx.push({ t: 'sound', type: 'tax' });
+                    pushLog(st, `💸 ${player.name} paid $${amount} rent to ${who} for ${tileName}!`, 'tax');
+                    fx.push({ t: 'toast', text: `💸 ${player.name} paid $${amount} rent to ${who}` });
+                    fx.push({ t: 'float', text: `-$${amount}`, color: '#f43f5e', sender: player.name });
+                } else if (kind === 'tax') {
+                    fx.push({ t: 'sound', type: 'tax' });
+                    pushLog(st, `🏛️ ${player.name} paid $${amount} in ${tileName}.`, 'tax');
+                    fx.push({ t: 'float', text: `-$${amount}`, color: '#f43f5e', sender: player.name });
+                } else if (kind === 'card') {
+                    pushLog(st, `💰 ${player.name} paid $${amount}.`, 'cash');
+                    fx.push({ t: 'float', text: `-$${amount}`, color: '#f43f5e', sender: player.name });
+                } else {
+                    fx.push({ t: 'sound', type: 'tax' });
+                    pushLog(st, `💸 ${player.name} paid $${amount}.`, 'tax');
+                    fx.push({ t: 'float', text: `-$${amount}`, color: '#f43f5e', sender: player.name });
+                }
+            }
+
+            // Once the debt is paid, hand back the turn — or the extra roll a doubles earned.
+            function finishObligation(st, p, fx) {
+                const extra = Boolean(p.pendingExtraRoll) && !p.bankrupt;
+                p.pendingExtraRoll = false;
+                p.obligation = null;
+                if (!extra) {
+                    if (st.turnPhase === 'RAISE' || p.bankrupt) {
+                        st.doublesCount = 0;
+                        st.turnPhase = 'END';
+                    }
+                    return;
+                }
+                st.doublesCount = (Number(st.doublesCount) || 0) + 1;
+                st.turnId = (Number(st.turnId) || 0) + 1;
+                st.turnPhase = 'ROLL';
+                pushLog(st, `🎲 Doubles! ${p.name} rolls again.`, 'event');
+                fx.push({ t: 'toast', text: `🎲 Doubles! ${p.name} rolls again` });
+            }
+
+            function forceBankrupt(st, player, creditorId, fx) {
+                const paid = Math.max(0, Math.trunc(Number(player.cash) || 0));
+                player.cash = 0;
+                player.obligation = null;
+                player.pendingJail = false;
+                player.debt = 0;
+                player.debtDueIn = 0;
+                const creditor = creditorId ? findP(st, creditorId) : null;
+                const giveDeeds = Boolean(creditor && !creditor.bankrupt);
+                payCreditor(st, giveDeeds ? creditorId : '', paid);
+                Object.keys(st.properties).forEach(tid => {
+                    const prop = st.properties[tid];
+                    if (!prop || prop.owner !== player.id) return;
+                    if (giveDeeds) prop.owner = creditorId;
+                    else delete st.properties[tid];
+                });
+                player.bankrupt = true;
+                const payee = giveDeeds ? creditor.name : 'the bank';
+                const tail = giveDeeds ? ' and took their deeds.' : '. Their deeds returned to the bank.';
+                pushLog(st, `💥 ${player.name} went BANKRUPT! ${payee} received $${paid}${tail}`, 'tax');
+                fx.push({ t: 'toast', text: `💥 ${player.name} went bankrupt!` });
+                fx.push({ t: 'sound', type: 'tax' });
+                finishObligation(st, player, fx);
+            }
+
+            function settleObligation(st, p, fx) {
+                const due = p && p.obligation;
+                if (!due || !(due.amount > 0) || p.bankrupt) return;
+                if ((p.cash || 0) >= due.amount) {
+                    const amount = due.amount;
+                    const to = due.to || '';
+                    const kind = due.kind || 'rent';
+                    const tileName = due.tileName || '';
+                    p.obligation = null;
+                    settlePayment(st, p, amount, to, fx, kind, tileName);
+                    finishObligation(st, p, fx);
+                    return;
+                }
+                if (raiseCapacity(st, p) < due.amount && !bestHouseToSell(st, p.id) && !cheapestToMortgage(st, p.id)) {
+                    const to = due.to || '';
+                    p.obligation = null;
+                    forceBankrupt(st, p, to, fx);
+                }
+            }
+
+            // Rent, tax and fines. Pay in full when the cash is there. Otherwise the seat
+            // may sell houses (half cost) and mortgage. Bankruptcy happens only when that
+            // is still short: the creditor — the bank, for tax and fines — receives the
+            // cash the seat actually has, plus its deeds. Cash never goes negative.
+            function chargePlayer(st, player, amount, creditorId, fx, kind, tileName) {
+                amount = Math.max(0, Math.trunc(Number(amount) || 0));
+                if (amount <= 0 || !player || player.bankrupt) return;
+                if ((player.cash || 0) >= amount) {
+                    settlePayment(st, player, amount, creditorId, fx, kind, tileName);
+                    return;
+                }
+                if (raiseCapacity(st, player) >= amount) {
+                    player.obligation = { amount, to: creditorId || '', kind: kind || 'rent', tileName: tileName || '' };
+                    st.turnPhase = 'RAISE';
+                    pushLog(st, `💸 ${player.name} owes $${amount} to ${payeeName(st, creditorId)} and must sell houses or mortgage to pay.`, 'tax');
+                    fx.push({ t: 'toast', text: `💸 ${player.name} must raise $${amount}` });
+                    return;
+                }
+                forceBankrupt(st, player, creditorId, fx);
+            }
+
+            // A skipped turn liquidates for the seat: sell, then mortgage, then go broke.
+            function autoRaise(st, p, fx) {
+                if (!p || !p.obligation || p.bankrupt) return;
+                let guard = 0;
+                while (p.obligation && !p.bankrupt && guard++ < 80) {
+                    const sale = bestHouseToSell(st, p.id);
+                    if (sale) {
+                        sale.prop.houses = (sale.prop.houses || 0) - 1;
+                        p.cash += sale.refund;
+                        pushLog(st, `🏠 ${p.name} sold a house on ${sale.tile.name} for +$${sale.refund}.`, 'cash');
+                        settleObligation(st, p, fx);
+                        if (!sale.refund) break;
+                        continue;
+                    }
+                    const deed = cheapestToMortgage(st, p.id);
+                    if (deed) {
+                        deed.prop.mortgaged = true;
+                        p.cash += deed.proceeds;
+                        pushLog(st, `🏦 ${p.name} mortgaged ${deed.tile.name} for +$${deed.proceeds}.`, 'event');
+                        settleObligation(st, p, fx);
+                        continue;
+                    }
+                    const to = p.obligation.to || '';
+                    p.obligation = null;
+                    forceBankrupt(st, p, to, fx);
+                    break;
+                }
+            }
+
             // Runs at the end of the debtor's turn. Ticks the countdown down, and once it
-            // hits zero the Ah Long collects: cash first, then deeds cheapest-first, and
-            // bankruptcy only when there is nothing left to take.
+            // hits zero the Ah Long collects in order: cash, houses at half cost, mortgages,
+            // then deeds cheapest-first at the same value net worth uses. Bankruptcy only
+            // when that still falls short. Cash never goes negative.
             function collectAhLongDebt(st, p, fx) {
                 if (!p || p.bankrupt || !(p.debt > 0)) return;
                 if ((p.debtDueIn || 0) > 0) {
@@ -1241,27 +1504,58 @@
                         return;
                     }
                 }
+                if (p.cash < 0) p.cash = 0;
                 let owed = p.debt;
-                const fromCash = Math.min(Math.max(p.cash, 0), owed);
+                const fromCash = Math.min(p.cash, owed);
                 p.cash -= fromCash;
                 owed -= fromCash;
-                const tiles = theme(st).tiles;
+                const sold = [];
+                const mortgagedNames = [];
                 const seized = [];
-                while (owed > 0) {
+                const tiles = theme(st).tiles;
+                let guard = 0;
+                while (owed > 0 && guard++ < 80) {
+                    const sale = bestHouseToSell(st, p.id);
+                    if (sale) {
+                        sale.prop.houses = (sale.prop.houses || 0) - 1;
+                        const gain = Math.max(0, sale.refund);
+                        const pay = Math.min(gain, owed);
+                        p.cash += gain - pay;
+                        owed -= pay;
+                        if (!sold.includes(sale.tile.name)) sold.push(sale.tile.name);
+                        continue;
+                    }
+                    const deed = cheapestToMortgage(st, p.id);
+                    if (deed) {
+                        deed.prop.mortgaged = true;
+                        const gain = Math.max(0, deed.proceeds);
+                        const pay = Math.min(gain, owed);
+                        p.cash += gain - pay;
+                        owed -= pay;
+                        if (!mortgagedNames.includes(deed.tile.name)) mortgagedNames.push(deed.tile.name);
+                        continue;
+                    }
                     const owned = Object.keys(st.properties)
                         .filter(tid => st.properties[tid]?.owner === p.id)
-                        .sort((a, b) => (tiles[a].price || 0) - (tiles[b].price || 0));
+                        .map(tid => ({ tid, prop: st.properties[tid], tile: tiles[Number(tid)] }))
+                        .filter(x => x.tile)
+                        .sort((a, b) => deedWorth(a.tile, a.prop) - deedWorth(b.tile, b.prop) || Number(a.tid) - Number(b.tid));
                     if (!owned.length) break;
-                    const tid = owned[0];
-                    owed -= (tiles[tid].price || 0);
-                    seized.push(tiles[tid].name);
-                    delete st.properties[tid];
+                    const take = owned[0];
+                    const worth = deedWorth(take.tile, take.prop);
+                    delete st.properties[take.tid];
+                    seized.push(take.tile.name);
+                    owed -= worth;
+                    if (owed < 0) owed = 0;
                 }
                 p.debt = 0;
                 p.debtDueIn = 0;
+                if (p.cash < 0) p.cash = 0;
                 fx.push({ t: 'sound', type: 'jail' });
                 let text = `🕴️ The Ah Long collected from ${p.name}`;
                 if (fromCash > 0) text += `, took $${fromCash} cash`;
+                if (sold.length) text += `, sold houses on ${sold.join(', ')}`;
+                if (mortgagedNames.length) text += `, mortgaged ${mortgagedNames.join(', ')}`;
                 if (seized.length) text += `, seized ${seized.join(', ')}`;
                 text += '.';
                 pushLog(st, text, 'tax');
@@ -1274,11 +1568,26 @@
                 }
             }
 
+            // Unimproved rent doubles on a complete, unmortgaged colour set. Buildings use the table.
+            function monopolyRent(st, tile, prop) {
+                if (!tile || tile.type !== 'property' || !prop || (prop.houses || 0) > 0) return false;
+                const mates = colorMates(st, tile);
+                if (!mates.length) return false;
+                for (let i = 0; i < mates.length; i++) {
+                    const owned = st.properties[mates[i].id];
+                    if (!owned || owned.owner !== prop.owner || owned.mortgaged) return false;
+                }
+                return true;
+            }
+
             function calcRent(st, tile, prop, diceSum) {
                 if (!tile || !prop || prop.mortgaged) return 0;
                 const tiles = theme(st).tiles;
                 if (tile.type === 'property') {
-                    return tile.rent[Math.min(prop.houses || 0, tile.rent.length - 1)] || 10;
+                    const houses = prop.houses || 0;
+                    const base = tile.rent[Math.min(houses, tile.rent.length - 1)] || 10;
+                    if (monopolyRent(st, tile, prop)) return base * 2;
+                    return base;
                 }
                 if (tile.type === 'railroad') {
                     const owned = tiles.filter(t => t.type === 'railroad' && st.properties[t.id]?.owner === prop.owner).length;
@@ -1291,33 +1600,24 @@
                 return 0;
             }
 
-            // Same rules, text, order and amounts as the old resolveTileLanding. The bankruptcy check runs at the
-            // end of every call, including the nested card-move call, exactly as before.
+            // Same tile order as before. A charge the seat cannot cover opens a raise-funds
+            // step instead of driving cash negative. Jail does not stop the owner collecting rent.
             function resolveLanding(st, fx, jumps, playerId, tile, diceSum, rng) {
                 const player = findP(st, playerId);
-                if (!tile || !player) return;
+                if (!tile || !player || player.bankrupt) return;
 
                 if (ENGINE_BUYABLE.includes(tile.type)) {
                     const prop = st.properties[tile.id];
                     if (prop && prop.owner && prop.owner !== player.id) {
                         const owner = findP(st, prop.owner);
-                        if (owner && !owner.bankrupt && !owner.inJail && !prop.mortgaged) {
+                        if (owner && !owner.bankrupt && !prop.mortgaged) {
                             const rent = calcRent(st, tile, prop, diceSum);
-                            player.cash -= rent;
-                            owner.cash += rent;
-                            fx.push({ t: 'sound', type: 'tax' });
-                            pushLog(st, `💸 ${player.name} paid $${rent} rent to ${owner.name} for ${tile.name}!`, 'tax');
-                            fx.push({ t: 'toast', text: `💸 ${player.name} paid $${rent} rent to ${owner.name}` });
-                            fx.push({ t: 'float', text: `-$${rent}`, color: '#f43f5e', sender: player.name });
+                            if (rent > 0) chargePlayer(st, player, rent, owner.id, fx, 'rent', tile.name);
                         }
                     }
                 } else if (tile.type === 'tax') {
                     const tax = scaledCash(st, tile.amount || 100);
-                    player.cash -= tax;
-                    if (st.rules.freeParkingJackpot) st.freeParkingPot = (st.freeParkingPot || 0) + tax;
-                    fx.push({ t: 'sound', type: 'tax' });
-                    pushLog(st, `🏛️ ${player.name} paid $${tax} in ${tile.name}.`, 'tax');
-                    fx.push({ t: 'float', text: `-$${tax}`, color: '#f43f5e', sender: player.name });
+                    chargePlayer(st, player, tax, '', fx, 'tax', tile.name);
                 } else if (tile.type === 'parking') {
                     if (st.rules.freeParkingJackpot && st.freeParkingPot > 0) {
                         const jackpot = st.freeParkingPot;
@@ -1346,12 +1646,13 @@
                         fx.push({ t: 'toast', text: `🃏 ${card.text}` });
                         if (card.action === 'cash') {
                             const delta = scaledCash(st, card.amount);
-                            player.cash += delta;
-                            if (delta < 0 && st.rules.freeParkingJackpot) {
-                                st.freeParkingPot += Math.abs(delta);
+                            if (delta >= 0) {
+                                player.cash += delta;
+                                pushLog(st, `💰 ${player.name} collected $${delta}.`, 'cash');
+                                fx.push({ t: 'float', text: `+$${delta}`, color: '#10b981', sender: player.name });
+                            } else {
+                                chargePlayer(st, player, -delta, '', fx, 'card', tile.name);
                             }
-                            pushLog(st, `💰 ${player.name} ${delta >= 0 ? 'collected' : 'paid'} $${Math.abs(delta)}.`, 'cash');
-                            fx.push({ t: 'float', text: `${delta >= 0 ? '+' : '-'}$${Math.abs(delta)}`, color: delta >= 0 ? '#10b981' : '#f43f5e', sender: player.name });
                         } else if (card.action === 'move') {
                             if (card.target < player.position) {
                                 const salary = scaledCash(st, Number(st.rules.goSalary) || 200);
@@ -1372,16 +1673,6 @@
                             fx.push({ t: 'toast', text: `🚧 ${player.name} is at the Jail gate` });
                         }
                     }
-                }
-
-                if (player.cash < 0) {
-                    player.bankrupt = true;
-                    player.pendingJail = false;
-                    Object.keys(st.properties).forEach(tid => {
-                        if (st.properties[tid]?.owner === player.id) delete st.properties[tid];
-                    });
-                    pushLog(st, `💥 ${player.name} went BANKRUPT! All their properties returned to the market.`, 'tax');
-                    fx.push({ t: 'toast', text: `💥 ${player.name} went bankrupt!` });
                 }
             }
 
@@ -1420,10 +1711,17 @@
                         p.jailTurns = (p.jailTurns || 0) + 1;
                         if (p.jailTurns >= JAIL_TURNS_TO_SERVE) {
                             const bail = scaledCash(st, 50);
-                            p.cash -= bail;
-                            p.inJail = false;
-                            p.jailTurns = 0;
-                            pushLog(st, `🔑 ${p.name} paid $${bail} bail after ${JAIL_TURNS_TO_SERVE} turns in Jail.`, 'tax');
+                            if ((p.cash || 0) >= bail) {
+                                p.cash -= bail;
+                                p.inJail = false;
+                                p.jailTurns = 0;
+                                pushLog(st, `🔑 ${p.name} paid $${bail} bail after ${JAIL_TURNS_TO_SERVE} turns in Jail.`, 'tax');
+                            } else {
+                                pushLog(st, `🔒 ${p.name} owes $${bail} bail but only has $${Math.max(0, p.cash || 0)}, so they stay in Jail.`, 'tax');
+                                st.doublesCount = 0;
+                                st.turnPhase = 'END';
+                                return event;
+                            }
                         } else {
                             pushLog(st, `🔒 ${p.name} rolled ${d1}+${d2} and stays in Jail (${p.jailTurns}/${JAIL_TURNS_TO_SERVE}).`, 'system');
                             st.doublesCount = 0;
@@ -1452,7 +1750,11 @@
 
                 // A fresh doubles grants another roll. Escaping Jail with doubles does not,
                 // and neither does a doubles that lands the player in Jail, at the gate, or bankrupt.
-                if (isDoubles && !startedInJail && !p.inJail && !p.pendingJail && !p.bankrupt) {
+                // A debt pauses that extra roll until the seat has raised the money.
+                if (p.obligation) {
+                    p.pendingExtraRoll = Boolean(isDoubles && !startedInJail && !p.inJail && !p.pendingJail && !p.bankrupt);
+                    st.turnPhase = 'RAISE';
+                } else if (isDoubles && !startedInJail && !p.inJail && !p.pendingJail && !p.bankrupt) {
                     st.doublesCount = (Number(st.doublesCount) || 0) + 1;
                     st.turnId = (Number(st.turnId) || 0) + 1;
                     st.turnPhase = 'ROLL';
@@ -1468,9 +1770,9 @@
             const REASONS = {
                 notPlaying: 'not_playing', paused: 'paused', seat: 'not_your_seat', turn: 'not_your_turn',
                 rolled: 'already_rolled', rollFirst: 'roll_first', cash: 'not_enough_cash', buy: 'cannot_buy',
-                build: 'cannot_build', mortgage: 'cannot_mortgage', bail: 'cannot_pay_bail',
+                build: 'cannot_build', mortgage: 'cannot_mortgage', sell: 'cannot_sell', bail: 'cannot_pay_bail',
                 bribe: 'cannot_bribe',
-                borrow: 'cannot_borrow', repay: 'cannot_repay'
+                borrow: 'cannot_borrow', repay: 'cannot_repay', raise: 'raise_funds'
             };
 
             // ctx.origin: 'local' | 'host' | 'guest' | 'bot'. Local and host origins own their seat without a token.
@@ -1500,6 +1802,7 @@
                     case 'roll':
                         return st.turnPhase === 'ROLL' ? { ok: true } : fail(REASONS.rolled);
                     case 'end':
+                        if (st.turnPhase === 'RAISE') return fail(REASONS.raise);
                         return st.turnPhase === 'END' ? { ok: true } : fail(REASONS.rollFirst);
                     case 'buy': {
                         if (st.turnPhase !== 'END') return fail(REASONS.rollFirst);
@@ -1515,18 +1818,29 @@
                         const tid = Number.isInteger(a.tileId) ? a.tileId : seat.position;
                         const tile = tiles[tid];
                         const prop = st.properties[tid];
-                        if (!tile || tile.type !== 'property' || !prop || prop.owner !== seat.id || prop.mortgaged || (prop.houses || 0) >= 5) return fail(REASONS.build);
+                        // Full colour set, nothing mortgaged, and houses stay even across the set.
+                        if (!canBuildOn(st, seat.id, tile, prop)) return fail(REASONS.build);
                         return seat.cash >= (tile.houseCost || 100) ? { ok: true } : fail(REASONS.cash);
                     }
+                    case 'sellhouse': {
+                        if (st.turnPhase !== 'END' && st.turnPhase !== 'RAISE') return fail(REASONS.rollFirst);
+                        const tid = Number.isInteger(a.tileId) ? a.tileId : seat.position;
+                        const tile = tiles[tid];
+                        const prop = st.properties[tid];
+                        if (!canSellHouseOn(st, seat.id, tile, prop)) return fail(REASONS.sell);
+                        return { ok: true };
+                    }
                     case 'mortgage': {
-                        if (st.turnPhase !== 'END') return fail(REASONS.rollFirst);
+                        if (st.turnPhase !== 'END' && st.turnPhase !== 'RAISE') return fail(REASONS.rollFirst);
                         const tile = Number.isInteger(a.tileId) ? tiles[a.tileId] : null;
                         const prop = tile ? st.properties[tile.id] : null;
                         if (!tile || !prop || prop.owner !== seat.id) return fail(REASONS.mortgage);
                         if (prop.mortgaged) {
+                            if (st.turnPhase === 'RAISE') return fail(REASONS.mortgage);
                             const cost = Math.ceil(Math.floor(tile.price / 2) * 1.1);
                             return seat.cash >= cost ? { ok: true } : fail(REASONS.cash);
                         }
+                        if (mortgageBlockedByHouses(st, seat.id, tile)) return fail(REASONS.mortgage);
                         return { ok: true };
                     }
                     case 'bail':
@@ -1552,6 +1866,7 @@
                         if ((seat.debt || 0) > 0) return fail(REASONS.borrow);
                         return seat.cash < scaledCash(st, AHLONG_CASH_THRESHOLD) ? { ok: true } : fail(REASONS.borrow);
                     case 'repay':
+                        if (st.turnPhase === 'RAISE') return fail(REASONS.repay);
                         return ((seat.debt || 0) > 0 && seat.cash >= seat.debt) ? { ok: true } : fail(REASONS.repay);
                     default:
                         return fail(REASONS.seat);
@@ -1580,22 +1895,39 @@
                     const tid = Number.isInteger(action.tileId) ? action.tileId : p.position;
                     const tile = tiles[tid];
                     const prop = st.properties[tid];
-                    const cost = tile.houseCost || 100;
+                    const cost = tile ? (tile.houseCost || 100) : 0;
+                    if (!canBuildOn(st, p.id, tile, prop) || p.cash < cost) return { state, event, effects: [] };
                     p.cash -= cost;
                     prop.houses = (prop.houses || 0) + 1;
                     fx.push({ t: 'sound', type: 'buy' });
                     const label = prop.houses === 5 ? 'a Hotel 🏨' : `House #${prop.houses} 🏠`;
                     pushLog(st, `🔨 ${p.name} built ${label} on ${tile.name} ($${cost}).`, 'buy');
+                } else if (action.kind === 'sellhouse') {
+                    const tid = Number.isInteger(action.tileId) ? action.tileId : p.position;
+                    const tile = tiles[tid];
+                    const prop = st.properties[tid];
+                    if (!canSellHouseOn(st, p.id, tile, prop)) return { state, event, effects: [] };
+                    const gain = houseRefund(tile);
+                    prop.houses -= 1;
+                    p.cash += gain;
+                    fx.push({ t: 'sound', type: 'step' });
+                    pushLog(st, `🏠 ${p.name} sold a house on ${tile.name} for +$${gain}.`, 'cash');
+                    fx.push({ t: 'float', text: `+$${gain}`, color: '#10b981', sender: p.name });
+                    settleObligation(st, p, fx);
                 } else if (action.kind === 'mortgage') {
                     const tile = tiles[action.tileId];
-                    const prop = st.properties[tile.id];
+                    const prop = tile ? st.properties[tile.id] : null;
+                    if (!tile || !prop) return { state, event, effects: [] };
                     const val = Math.floor(tile.price / 2);
                     if (!prop.mortgaged) {
+                        if (mortgageBlockedByHouses(st, p.id, tile)) return { state, event, effects: [] };
                         prop.mortgaged = true;
                         p.cash += val;
                         pushLog(st, `🏦 ${p.name} mortgaged ${tile.name} for +$${val}.`, 'event');
+                        settleObligation(st, p, fx);
                     } else {
                         const cost = Math.ceil(val * 1.1);
+                        if (p.cash < cost) return { state, event, effects: [] };
                         p.cash -= cost;
                         prop.mortgaged = false;
                         pushLog(st, `🏦 ${p.name} unmortgaged ${tile.name} for -$${cost}.`, 'event');
@@ -1647,6 +1979,7 @@
                     pushLog(st, `🕴️ ${p.name} borrowed $${loan} from the Ah Long. Owes $${repay} in ${AHLONG_TERM_TURNS} turns.`, 'cash');
                     fx.push({ t: 'toast', text: `🕴️ ${p.name} took a $${loan} Ah Long loan` });
                     fx.push({ t: 'float', text: `+$${loan}`, color: '#f59e0b', sender: p.name });
+                    settleObligation(st, p, fx);
                 } else if (action.kind === 'repay') {
                     const owed = p.debt;
                     p.cash -= owed;
@@ -1676,6 +2009,7 @@
                 const fx = [];
                 if (!p) return { state: st, event: { kind: 'skip', seatId, effects: fx } };
                 const why = reason === 'disconnected' ? 'disconnected' : 'no move for 60s';
+                if (p.obligation) autoRaise(st, p, fx);
                 // A skipped turn still counts toward the Ah Long deadline, so idling can't dodge it.
                 collectAhLongDebt(st, p, fx);
                 if (p.pendingJail && !p.bankrupt) {
@@ -1728,7 +2062,16 @@
             // Long loan below $200, repaid on the turn before it comes due.
             function botChoice(state, seatId) {
                 const p = findP(state, seatId);
-                if (!p || !p.isBot || p.bankrupt) return null;
+                if (!p || !p.isBot) return null;
+                if (p.bankrupt) return 'end';
+                if (state.turnPhase === 'RAISE') {
+                    const sale = bestHouseToSell(state, p.id);
+                    if (sale) return { kind: 'sellhouse', tileId: sale.tile.id };
+                    const deed = cheapestToMortgage(state, p.id);
+                    if (deed) return { kind: 'mortgage', tileId: deed.tile.id };
+                    if (state.rules.ahlongEnabled && !(p.debt > 0) && p.cash < scaledCash(state, AHLONG_CASH_THRESHOLD)) return 'borrow';
+                    return 'end';
+                }
                 const tiles = theme(state).tiles;
                 if (state.turnPhase === 'ROLL') {
                     if (state.rules.ahlongEnabled && !(p.debt > 0) && p.cash < scaledCash(state, 200)) return 'borrow';
@@ -1744,7 +2087,18 @@
                 const tile = tiles[p.position];
                 const prop = tile ? state.properties[tile.id] : null;
                 if (tile && ENGINE_BUYABLE.includes(tile.type) && !prop && p.cash >= tile.price + scaledCash(state, 100)) return 'buy';
-                if (tile && tile.type === 'property' && prop && prop.owner === p.id && (prop.houses || 0) < 5 && p.cash >= (tile.houseCost || 100) + scaledCash(state, 250)) return 'build';
+                // Build only on a complete unmortgaged colour set, and only on the least-built deed.
+                const cushion = scaledCash(state, 250);
+                let buildTile = null;
+                for (let i = 0; i < tiles.length; i++) {
+                    const candidate = tiles[i];
+                    if (candidate.type !== 'property') continue;
+                    const owned = state.properties[candidate.id];
+                    if (!canBuildOn(state, p.id, candidate, owned)) continue;
+                    if (p.cash < (candidate.houseCost || 100) + cushion) continue;
+                    if (!buildTile || candidate.id < buildTile.id) buildTile = candidate;
+                }
+                if (buildTile) return { kind: 'build', tileId: buildTile.id };
                 return 'end';
             }
 
@@ -1817,7 +2171,7 @@
                         name: netCleanText(rp.name, 20) || 'Tycoon',
                         color: netCleanColor(rp.color, '#38bdf8'),
                         token: Object.prototype.hasOwnProperty.call(TOKEN_ICONS, rp.token) ? rp.token : 'hat',
-                        cash: clampInt(rp.cash, -10000000, 10000000, 0),
+                        cash: clampInt(rp.cash, 0, 10000000, 0),
                         position: isInt(rp.position, 0, 39) ? rp.position : 0,
                         inJail: rp.inJail === true,
                         pendingJail: rp.pendingJail === true,
@@ -1826,13 +2180,31 @@
                         ready: rp.ready === true,
                         bankrupt: rp.bankrupt === true,
                         debt: isInt(rp.debt, 0, 10000000) ? rp.debt : 0,
-                        debtDueIn: isInt(rp.debtDueIn, 0, 99) ? rp.debtDueIn : 0
+                        debtDueIn: isInt(rp.debtDueIn, 0, 99) ? rp.debtDueIn : 0,
+                        obligation: null,
+                        pendingExtraRoll: rp.pendingExtraRoll === true
                     };
+                    p._rawObligation = rp.obligation;
                     if (!isBot) p.tokenHash = tokenHash;
                     // A gate decision only exists on the Jail tile, and never together with a cell lockup.
                     if (p.pendingJail && (p.position !== 10 || p.inJail)) p.pendingJail = false;
                     players.push(p);
                 }
+                players.forEach(p => {
+                    const o = p._rawObligation;
+                    delete p._rawObligation;
+                    p.obligation = null;
+                    if (!o || typeof o !== 'object') { p.pendingExtraRoll = false; return; }
+                    const amount = o.amount;
+                    const to = String(o.to || '');
+                    if (!isInt(amount, 1, 10000000) || (to && (!ENGINE_SEAT_ID.test(to) || !seen.has(to)))) {
+                        p.pendingExtraRoll = false;
+                        return;
+                    }
+                    const kind = ['rent', 'tax', 'card', 'bail'].includes(o.kind) ? o.kind : 'rent';
+                    const tileName = String(o.tileName || '').replace(/[<>]/g, '').slice(0, 40);
+                    p.obligation = { amount, to, kind, tileName };
+                });
                 if (!players.length) return null;
                 if (typeof raw.hostSeatId !== 'string' || !seen.has(raw.hostSeatId)) return null;
 
@@ -1883,12 +2255,15 @@
                     ? raw.removedSeats.filter(s => typeof s === 'string' && ENGINE_SEAT_ID.test(s)).slice(-10)
                     : [];
 
+                let turnPhase = raw.turnPhase === 'END' ? 'END' : (raw.turnPhase === 'RAISE' ? 'RAISE' : 'ROLL');
+                if (turnPhase === 'RAISE' && !players.some(pl => pl.obligation && pl.obligation.amount > 0)) turnPhase = 'END';
+
                 return {
                     roomCode,
                     mapId: raw.mapId,
                     status: raw.status,
                     turnIndex: isInt(raw.turnIndex, 0, players.length - 1) ? raw.turnIndex : 0,
-                    turnPhase: raw.turnPhase === 'END' ? 'END' : 'ROLL',
+                    turnPhase,
                     lastDice,
                     doublesCount: isInt(raw.doublesCount, 0, 3) ? raw.doublesCount : 0,
                     freeParkingPot: isInt(raw.freeParkingPot, 0, 10000000) ? raw.freeParkingPot : 0,
@@ -2086,6 +2461,8 @@
         let roomPaused = false;
         let handoverInfo = null;
         let claimState = null;
+        // A ROOM_STATE that would change the host is held here until a token-proven HOST_CLAIM matches it.
+        let pendingHostState = null;
         let resumeState = null;
         let lastClaimPacket = null;
         let spectatorReason = '';
@@ -2570,28 +2947,35 @@
             renderNetNotice();
         }
 
-        // Guest side of ROOM_STATE. Only the current host for the current term may write state.
+        // Guest side of ROOM_STATE. The current host keeps writing for the current term.
+        // A higher term, or a different sender at this term, is a takeover. Matching
+        // senderClientId to state.hostClientId is not proof — the public MQTT topic is
+        // open to anyone with the room code — so that packet is parked until a
+        // token-proven HOST_CLAIM names the same sender, term and seat.
         function onRoomStatePacket(data) {
             const state = PolyEngine.validateRoomState(data.state, { roomCode: gameState.roomCode });
             if (!state) return;
             const sender = String(data.senderClientId || '');
             if (!sender || sender === myClientUniqueId || state.hostClientId !== sender) return;
 
-            const hostSeat = state.players.find(p => p.id === state.hostSeatId);
-            const seatOk = Boolean(hostSeat && !hostSeat.isBot);
             const known = authTerm > 0;
             const sameHost = known && sender === authHostClientId && state.hostTerm === authTerm;
-            const higherTerm = known && state.hostTerm > authTerm && seatOk;
-            const curIdx = state.players.findIndex(p => p.id === authHostSeatId);
-            const newIdx = state.players.findIndex(p => p.id === state.hostSeatId);
-            const tieWinner = known && state.hostTerm === authTerm && sender !== authHostClientId && seatOk
-                && newIdx >= 0 && (curIdx < 0 || newIdx < curIdx);
-            if (!(!known || sameHost || higherTerm || tieWinner)) return;
+            const takeover = known && !sameHost && state.hostTerm >= authTerm
+                && (state.hostTerm > authTerm || sender !== authHostClientId);
+            if (takeover) {
+                const hostSeat = state.players.find(p => p.id === state.hostSeatId);
+                if (hostSeat && !hostSeat.isBot) {
+                    pendingHostState = { sender, state, event: data.event, turnMsLeft: Number(data.turnMsLeft) };
+                }
+                return;
+            }
+            if (known && !sameHost) return;
 
-            const ordered = tieWinner || state.hostTerm > lastAccepted.term
+            const ordered = state.hostTerm > lastAccepted.term
                 || (state.hostTerm === lastAccepted.term && state.stateSeq > lastAccepted.seq);
             if (!ordered) return;
 
+            pendingHostState = null;
             if (isRoomHost) demoteToGuest('outranked');
             const first = !known || awaitingHostState;
             authTerm = state.hostTerm;
@@ -2890,7 +3274,7 @@
 
         function handleActionPacket(data) {
             if (!isRoomHost) return;
-            const kinds = ['roll', 'buy', 'build', 'mortgage', 'bail', 'bribe', 'end', 'borrow', 'repay'];
+            const kinds = ['roll', 'buy', 'build', 'sellhouse', 'mortgage', 'bail', 'bribe', 'end', 'borrow', 'repay'];
             const action = {
                 seatId: String(data.seatId || ''),
                 seatToken: String(data.seatToken || ''),
@@ -2918,6 +3302,8 @@
             cannot_buy: "this space can't be bought",
             cannot_build: "you can't build here",
             cannot_mortgage: "you can't mortgage that",
+            cannot_sell: "you can't sell a house there",
+            raise_funds: 'sell houses or mortgage to pay what you owe',
             cannot_pay_bail: "you can't pay bail now",
             cannot_bribe: "you can't bribe the guard now",
             cannot_borrow: "the Ah Long won't lend to you now",
@@ -3055,6 +3441,19 @@
             if ((Number(base.stateSeq) || 0) > (Number(data.stateSeq) || 0)) {
                 sendTransportPacket({ type: 'STATE_OFFER', targetClientId: sender, state: base });
             }
+            const parked = pendingHostState;
+            if (parked && parked.sender === sender && parked.state
+                && parked.state.hostTerm === term && parked.state.hostSeatId === seatId) {
+                pendingHostState = null;
+                onRoomStatePacket({
+                    type: 'ROOM_STATE',
+                    senderClientId: sender,
+                    state: parked.state,
+                    event: parked.event,
+                    turnMsLeft: parked.turnMsLeft,
+                    roomCode: parked.state.roomCode
+                });
+            }
             renderNetNotice();
             updateP2PConnectionBadges();
             renderAllUI();
@@ -3181,6 +3580,7 @@
             cancelClaim();
             handoverInfo = null;
             roomPaused = false;
+            pendingHostState = null;
             // Presence is per room: a new room starts with every seat unbound and unseen.
             for (const id of Object.keys(seatClientIds)) delete seatClientIds[id];
             for (const id of Object.keys(lastSeenAt)) delete lastSeenAt[id];
@@ -5637,6 +6037,18 @@
             dispatchSeatAction('build', tid);
         }
         function handleToggleMortgage(tileId) { dispatchSeatAction('mortgage', tileId); }
+        function handleSellHouse(tileId) { dispatchSeatAction('sellhouse', tileId); }
+
+        // Mirrors validateAction for the buttons, so the inspector cannot offer an illegal build,
+        // an uneven sale, or a mortgage that still has houses on the colour.
+        function previewAction(kind, tileId) {
+            if (!canLocalUserAct()) return false;
+            const current = getCurrentPlayer();
+            if (!current || current.isBot) return false;
+            const action = { seatId: current.id, kind, turnId: gameState.turnId };
+            if (Number.isInteger(tileId)) action.tileId = tileId;
+            return PolyEngine.validateAction(gameState, action, { origin: 'local' }).ok;
+        }
         function handlePayJailBail() { dispatchSeatAction('bail'); }
         function handleBribeGuard() { dispatchSeatAction('bribe'); }
         function handleBorrowAhLong() { dispatchSeatAction('borrow'); }
@@ -5656,7 +6068,7 @@
         function scheduleBotTurn() {
             if (!canApplyActionsLocally() || gameState.status !== 'playing' || gameState.winnerId) { clearBotTask(); return; }
             const current = getCurrentPlayer();
-            if (!current || !current.isBot || current.bankrupt) { clearBotTask(); return; }
+            if (!current || !current.isBot) { clearBotTask(); return; }
             if (botTask && botTask.turnId === gameState.turnId && botTask.phase === gameState.turnPhase) return;
             if (isAnimatingMove) return;
 
@@ -5671,11 +6083,15 @@
                     botTask = null;
                     if (!canApplyActionsLocally() || gameState.status !== 'playing' || isAnimatingMove) return;
                     const bot = getCurrentPlayer();
-                    if (!bot || !bot.isBot || bot.bankrupt || gameState.turnId !== turnId) return;
-                    const kind = PolyEngine.botChoice(authState(), bot.id);
+                    if (!bot || !bot.isBot || gameState.turnId !== turnId) return;
+                    const choice = PolyEngine.botChoice(authState(), bot.id);
+                    if (!choice) return;
+                    const kind = typeof choice === 'string' ? choice : choice.kind;
                     if (!kind) return;
+                    const action = { seatId: bot.id, kind, turnId: authState().turnId };
+                    if (choice && typeof choice === 'object' && Number.isInteger(choice.tileId)) action.tileId = choice.tileId;
                     // Bots act for their own seat; validateAction accepts that only under origin 'bot'.
-                    const res = hostApplyAction({ seatId: bot.id, kind, turnId: authState().turnId }, { origin: 'bot' });
+                    const res = hostApplyAction(action, { origin: 'bot' });
                     // afterCommitIdle re-runs scheduleBotTurn for the next step once the commit settles.
                     if (res && !res.ok && kind === 'end') clearBotTask();
                 }, delay)
@@ -5847,12 +6263,11 @@
             const tile = BOARD_TILES[selectedTileId] || BOARD_TILES[0];
             const prop = gameState.properties[tile.id];
             const owner = prop?.owner ? gameState.players.find(p => p.id === prop.owner) : null;
-            const current = getCurrentPlayer();
-            const isMine = canLocalUserAct() && current && prop?.owner === current.id;
-            const canManageHere = isMine && gameState.turnPhase === 'END';
-            // Mortgaging stays available at the Jail gate so the seat can raise the bribe.
-            const canBuildHere = canManageHere && !current?.pendingJail;
             const houses = prop?.houses || 0;
+            const canBuildHere = previewAction('build', tile.id);
+            const canSellHere = previewAction('sellhouse', tile.id);
+            const canMortgageHere = previewAction('mortgage', tile.id);
+            const sellFor = Math.floor((tile.houseCost || 0) / 2);
 
             panel.innerHTML = `
                 <div class="rounded-xl p-3 text-white shadow-inner border border-white/10" style="background:${tile.color || '#334155'}">
@@ -5877,12 +6292,17 @@
                             <div class="flex justify-between ${houses === 5 ? 'text-amber-400 font-bold' : 'text-slate-400'}"><span>HOTEL 🏨</span><span>$${tile.rent[5]}</span></div>
                         </div>
                         <div class="flex gap-1.5 pt-1">
-                            ${canBuildHere && !prop.mortgaged && houses < 5 && current.cash >= (tile.houseCost || 100) ? `
+                            ${canBuildHere ? `
                                 <button onclick="handleUpgradeCurrentTile(${tile.id})" class="flex-1 py-1.5 rounded-xl bg-sky-400 hover:bg-sky-300 text-slate-950 font-black text-xs transition">
                                     🔨 Build ($${tile.houseCost})
                                 </button>
                             ` : ''}
-                            ${canManageHere ? `
+                            ${canSellHere ? `
+                                <button onclick="handleSellHouse(${tile.id})" class="flex-1 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs transition">
+                                    Sell (+$${sellFor})
+                                </button>
+                            ` : ''}
+                            ${canMortgageHere ? `
                                 <button onclick="handleToggleMortgage(${tile.id})" class="flex-1 py-1.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold text-xs transition">
                                     ${prop.mortgaged ? 'Unmortgage' : `Mortgage (+$${Math.floor(tile.price / 2)})`}
                                 </button>
@@ -5940,7 +6360,9 @@
                         ? `Match over. ${champ.name} won. Start the next round from the lobby.`
                         : 'Match over. Start the next round from the lobby.';
                 } else if (current) {
-                    if (current.pendingJail) {
+                    if (gameState.turnPhase === 'RAISE' && current.obligation) {
+                        subEl.textContent = `${current.name} must raise $${current.obligation.amount} — sell houses or mortgage`;
+                    } else if (current.pendingJail) {
                         subEl.textContent = `${current.name} is at the Jail gate: bribe the guard or serve time`;
                     } else if (current.inJail && gameState.turnPhase === 'END') {
                         subEl.textContent = (current.jailTurns || 0) >= 1
@@ -6025,7 +6447,8 @@
                             ${current.inJail ? `<span class="text-[10px] px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300">JAIL ${Math.min((current.jailTurns || 0) + 1, JAIL_TURNS_TO_SERVE)}/${JAIL_TURNS_TO_SERVE}</span>` : ''}
                             ${current.pendingJail ? '<span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300">GATE</span>' : ''}
                         </div>
-                        <div class="text-xs text-emerald-400 font-mono font-bold">$${current.cash}</div>
+                        <div class="text-xs text-emerald-400 font-mono font-bold">$${Math.max(0, Math.trunc(Number(current.cash) || 0))}</div>
+                        ${current.obligation && current.obligation.amount > 0 ? `<div class="text-[10px] text-amber-300 font-mono font-bold">Raise $${current.obligation.amount}</div>` : ''}
                         ${current.debt > 0 ? `<div class="text-[10px] text-rose-300 font-mono font-bold">🕴️ Ah Long: $${current.debt} • ${current.debtDueIn} turns left</div>` : ''}
                     </div>
                 `;
@@ -6043,10 +6466,11 @@
             const curTile = current ? BOARD_TILES[current.position] : null;
             const curProp = curTile ? gameState.properties[curTile.id] : null;
             const showRoll = gameState.turnPhase === 'ROLL';
+            const raising = gameState.turnPhase === 'RAISE';
             const atJailGate = Boolean(current?.pendingJail) && gameState.turnPhase === 'END';
             const inJailCell = Boolean(current?.inJail) && !current?.pendingJail;
             const canBuy = canAct && !current?.isBot && !atJailGate && gameState.turnPhase === 'END' && curTile && ['property', 'railroad', 'utility'].includes(curTile.type) && !curProp && current.cash >= curTile.price;
-            const canBuild = canAct && !current?.isBot && !atJailGate && curTile && curTile.type === 'property' && curProp?.owner === current?.id && !curProp.mortgaged && (curProp.houses || 0) < 5 && current.cash >= (curTile.houseCost || 100);
+            const canBuild = Boolean(curTile) && previewAction('build', curTile.id);
             // Bail is paid instead of rolling, so it lives on the ROLL phase.
             const showBail = canAct && !current?.isBot && inJailCell && showRoll && current.cash >= bailCost;
             // The bribe has two prices: the gate gamble before the roll, and the certain
@@ -6056,7 +6480,7 @@
             const canBribe = canAct && !current?.isBot && (atJailGate || canBribeCell) && current.cash >= bribePrice;
             // Ah Long: one loan at a time, offered only to a seat that is nearly broke.
             const canBorrow = canAct && !current?.isBot && gameState.rules?.ahlongEnabled !== false && !(current?.debt > 0) && (current?.cash ?? 0) < borrowThreshold;
-            const canRepay = canAct && !current?.isBot && (current?.debt || 0) > 0 && current.cash >= current.debt;
+            const canRepay = canAct && !raising && !current?.isBot && (current?.debt || 0) > 0 && current.cash >= current.debt;
 
             const rollBtn = document.getElementById('btn-roll-dice');
             const buyBtn = document.getElementById('btn-buy-property');
@@ -6075,7 +6499,7 @@
             document.getElementById('dice-stage-2d')?.classList.toggle('hidden', matchOver);
 
             if (rollBtn) { rollBtn.disabled = !canAct || !showRoll || Boolean(current?.isBot); rollBtn.classList.toggle('hidden', matchOver || !showRoll); }
-            if (endBtn) { endBtn.disabled = !canAct || Boolean(current?.isBot); endBtn.classList.toggle('hidden', matchOver || showRoll); }
+            if (endBtn) { endBtn.disabled = !canAct || Boolean(current?.isBot); endBtn.classList.toggle('hidden', matchOver || showRoll || raising); }
             if (buyBtn) {
                 buyBtn.classList.toggle('hidden', matchOver || !canBuy);
                 const lbl = document.getElementById('btn-buy-label');
@@ -6118,7 +6542,7 @@
             document.getElementById('btn-3d-result')?.classList.toggle('hidden', !matchOver);
             document.getElementById('dice-3d-dock-box')?.classList.toggle('hidden', matchOver);
             document.getElementById('btn-3d-roll')?.classList.toggle('hidden', matchOver || !showRoll);
-            document.getElementById('btn-3d-end')?.classList.toggle('hidden', matchOver || showRoll);
+            document.getElementById('btn-3d-end')?.classList.toggle('hidden', matchOver || showRoll || raising);
             document.getElementById('btn-3d-buy')?.classList.toggle('hidden', matchOver || !canBuy);
             document.getElementById('btn-3d-build')?.classList.toggle('hidden', matchOver || !canBuild);
             document.getElementById('btn-3d-bail')?.classList.toggle('hidden', matchOver || !showBail);
@@ -6169,7 +6593,8 @@
                                 </div>
                             </div>
                             <div class="text-right">
-                                <div class="font-mono font-extrabold text-xs text-emerald-400">$${p.cash}</div>
+                                <div class="font-mono font-extrabold text-xs text-emerald-400">$${Math.max(0, Math.trunc(Number(p.cash) || 0))}</div>
+                                ${p.obligation && p.obligation.amount > 0 ? `<div class="text-[9px] font-mono font-bold text-amber-300">raise $${p.obligation.amount}</div>` : ''}
                                 ${p.debt > 0 ? `<div class="text-[9px] font-mono font-bold text-rose-300">🕴️ owes $${p.debt}</div>` : ''}
                             </div>
                         </div>
