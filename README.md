@@ -22,3 +22,13 @@ npm run test:unit
 ```
 
 `npm run test:unit` runs the Vitest suite in `tests/unit`.
+
+## Styles
+
+Tailwind is compiled ahead of time. `assets/tailwind.css` is what GitHub Pages serves. After changing classes in `index.html`, regenerate it:
+
+```bash
+npm run css:build
+```
+
+The stylesheet is scanned from `index.html`, including class strings built in JavaScript.
