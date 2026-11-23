@@ -103,7 +103,7 @@ describe('ah long loans', () => {
     g.close();
   });
 
-  it('seizes the cheapest deed that covers the debt and spares the pricier one', async () => {
+  it('mortgages before seizing, and seizes the cheapest deed that covers the rest', async () => {
     const g = await loadGame();
     const out = g.win.eval(`(function(){
       const st = PolyEngine.createInitialState();
@@ -117,18 +117,21 @@ describe('ah long loans', () => {
       st.properties[pricey] = { owner: 'p1', houses: 0, mortgaged: false };
       const p = st.players[0];
       p.cash = 0;
-      p.debt = tiles[cheap].price;
+      // More than both mortgages, but the cheap deed's mortgaged value covers what is left.
+      p.debt = Math.floor(tiles[cheap].price / 2) + Math.floor(tiles[pricey].price / 2) + Math.floor(tiles[cheap].price / 2);
       p.debtDueIn = 1;
       const res = PolyEngine.applyAction(st, { seatId: 'p1', kind: 'end', turnId: 0 });
       return {
         hasCheap: Boolean(res.state.properties[cheap]),
-        hasPricey: Boolean(res.state.properties[pricey]),
+        pricey: res.state.properties[pricey] || null,
+        cash: res.state.players[0].cash,
         debt: res.state.players[0].debt,
         bankrupt: res.state.players[0].bankrupt
       };
     })()`);
     expect(out.hasCheap).toBe(false);
-    expect(out.hasPricey).toBe(true);
+    expect(out.pricey && out.pricey.mortgaged).toBe(true);
+    expect(out.cash).toBe(0);
     expect(out.debt).toBe(0);
     expect(out.bankrupt).toBe(false);
     g.close();

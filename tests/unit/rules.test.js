@@ -69,12 +69,14 @@ describe('turn rules', () => {
     const g = await loadGame();
     const out = g.win.eval(`(function(){
       const tiles = MAP_THEMES.malaysia.tiles;
-      const tid = tiles.findIndex(t => t.type === 'property');
+      const first = tiles.find(t => t.type === 'property');
+      const group = tiles.filter(t => t.type === 'property' && t.color === first.color);
+      const tid = first.id;
       const make = (phase) => {
         const st = PolyEngine.createInitialState();
         st.status = 'playing';
         st.turnPhase = phase;
-        st.properties[tid] = { owner: 'p1', houses: 0, mortgaged: false };
+        group.forEach(t => { st.properties[t.id] = { owner: 'p1', houses: 0, mortgaged: false }; });
         return st;
       };
       const v = (phase) => PolyEngine.validateAction(make(phase), { seatId: 'p1', kind: 'build', tileId: tid, turnId: 0 }, { origin: 'local' }).ok;
