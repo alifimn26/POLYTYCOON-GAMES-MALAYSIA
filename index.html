@@ -428,6 +428,273 @@
             mask-image: linear-gradient(to right, #000 calc(100% - 14px), transparent 100%);
             -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 14px), transparent 100%);
         }
+
+        /* Phone and tablet: the roster collapses to one cash line, and the deed
+           inspector, log and portfolio live in a drawer so the board keeps the height. */
+        #roster-cash-strip,
+        #mobile-panel-bar,
+        #selected-tile-chip,
+        #drawer-handle,
+        #my-deeds-mobile,
+        #mobile-drawer-backdrop { display: none; }
+
+        #roster-cash-strip { gap: 6px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+        #roster-cash-strip::-webkit-scrollbar { display: none; }
+        .cash-strip-chip {
+            flex: 0 0 auto;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            min-height: 36px;
+            padding: 3px 10px 3px 4px;
+            border-radius: 999px;
+            border: 1px solid rgba(51, 65, 85, 0.95);
+            background: rgba(15, 23, 42, 0.85);
+            color: #e2e8f0;
+            font-size: 12px;
+            font-weight: 800;
+        }
+        .cash-strip-chip.is-turn { border-color: rgba(16, 185, 129, 0.75); box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.35); }
+        .cash-strip-chip.is-bust { opacity: 0.4; }
+        .cash-strip-dot {
+            width: 26px; height: 26px; border-radius: 999px;
+            display: flex; align-items: center; justify-content: center;
+            color: #fff; font-size: 11px; flex-shrink: 0;
+        }
+        .cash-strip-amt { font-family: 'JetBrains Mono', monospace; color: #34d399; font-weight: 800; }
+
+        #selected-tile-chip {
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            width: 100%;
+            font-size: 13px;
+            font-weight: 800;
+            line-height: 1.3;
+            color: #f8fafc;
+            background: rgba(15, 23, 42, 0.92);
+            border: 1px solid rgba(16, 185, 129, 0.4);
+            border-radius: 12px;
+            padding: 6px 10px;
+        }
+        #roll-first-hint {
+            width: 100%;
+            text-align: center;
+            font-size: 11px;
+            font-weight: 800;
+            color: #a7f3d0;
+            letter-spacing: 0.01em;
+        }
+
+        #mobile-panel-bar { gap: 6px; }
+        #mobile-panel-bar button {
+            flex: 1;
+            min-height: 40px;
+            border-radius: 12px;
+            border: 1px solid #334155;
+            background: #1e293b;
+            color: #cbd5e1;
+            font-size: 12px;
+            font-weight: 800;
+        }
+        #mobile-panel-bar button[aria-selected="true"] {
+            background: #059669;
+            border-color: #34d399;
+            color: #fff;
+        }
+
+        .rule-tip {
+            position: relative;
+            flex-shrink: 0;
+            width: 16px;
+            height: 16px;
+            border-radius: 999px;
+            border: 1px solid rgba(148, 163, 184, 0.7);
+            background: rgba(15, 23, 42, 0.8);
+            color: #cbd5e1;
+            font-size: 10px;
+            font-weight: 800;
+            line-height: 1;
+        }
+        .rule-tip::after {
+            content: attr(data-tip);
+            display: none;
+            position: absolute;
+            z-index: 20;
+            right: 0;
+            bottom: calc(100% + 6px);
+            width: max-content;
+            max-width: 220px;
+            padding: 6px 8px;
+            border-radius: 8px;
+            background: #020617;
+            border: 1px solid rgba(16, 185, 129, 0.45);
+            color: #e2e8f0;
+            font-size: 11px;
+            font-weight: 600;
+            line-height: 1.35;
+            text-align: left;
+            white-space: normal;
+            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
+        }
+        .rule-tip:hover::after,
+        .rule-tip:focus::after,
+        .rule-tip.tip-open::after { display: block; }
+
+        .card-scene { perspective: 900px; width: min(280px, 78vw); height: 360px; }
+        .card-flip {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transform-style: preserve-3d;
+            transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .card-flip.is-revealed { transform: rotateY(180deg); }
+        .card-face {
+            position: absolute;
+            inset: 0;
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+            border-radius: 18px;
+            overflow: hidden;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
+        }
+        .card-back {
+            background:
+                radial-gradient(circle at 50% 42%, rgba(251, 191, 36, 0.28), transparent 36%),
+                repeating-linear-gradient(45deg, rgba(6, 78, 59, 0.2) 0 10px, rgba(251, 191, 36, 0.14) 10px 12px),
+                repeating-linear-gradient(-45deg, rgba(6, 78, 59, 0.15) 0 10px, rgba(251, 191, 36, 0.1) 10px 12px),
+                linear-gradient(160deg, #065f46 0%, #022c22 55%, #14532d 100%);
+            border: 3px solid #fbbf24;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            color: #fef3c7;
+        }
+        .card-back-flower { font-size: 54px; filter: drop-shadow(0 6px 8px rgba(0,0,0,0.35)); }
+        .card-back-mark {
+            font-weight: 900;
+            letter-spacing: 0.28em;
+            font-size: 14px;
+            text-indent: 0.28em;
+        }
+        .card-front {
+            transform: rotateY(180deg);
+            background:
+                linear-gradient(180deg, rgba(251, 191, 36, 0.16), transparent 28%),
+                linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%);
+            color: #1c1917;
+            border: 3px solid #b45309;
+            display: flex;
+            flex-direction: column;
+            padding: 22px 18px 18px;
+        }
+        .card-front-kicker {
+            font-size: 11px;
+            font-weight: 900;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: #b45309;
+        }
+        #card-modal-text {
+            margin-top: 14px;
+            font-size: 20px;
+            font-weight: 800;
+            line-height: 1.35;
+            color: #1c1917;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .card-flip { transition: none; }
+        }
+
+        #raise-funds-sheet .raise-sheet {
+            width: min(440px, 100%);
+            max-height: min(86dvh, 640px);
+            overflow: auto;
+        }
+
+        @media (max-width: 1023.98px) {
+            #left-sidebar {
+                max-height: none;
+                padding: 6px 8px;
+                gap: 0;
+                overflow: hidden;
+            }
+            #left-sidebar .roster-desktop { display: none; }
+            #roster-cash-strip { display: flex; }
+            #board-stage-area {
+                flex-direction: column;
+                justify-content: flex-start;
+                align-items: center;
+                padding: 4px 6px;
+                gap: 6px;
+            }
+            #selected-tile-chip { display: flex; }
+            .tile-name {
+                font-size: 8px;
+                line-height: 1.05;
+            }
+            #mobile-panel-bar {
+                display: flex;
+                flex-shrink: 0;
+                padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+                background: rgba(15, 23, 42, 0.96);
+                border-top: 1px solid rgba(51, 65, 85, 0.9);
+                z-index: 45;
+            }
+            #mobile-drawer-backdrop {
+                display: block;
+                position: fixed;
+                inset: 0;
+                background: rgba(2, 6, 23, 0.5);
+                z-index: 30;
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity 0.2s ease;
+            }
+            #mobile-drawer-backdrop.is-open { opacity: 1; pointer-events: auto; }
+            #drawer-handle { display: flex; }
+            #right-sidebar {
+                position: fixed;
+                left: 0;
+                right: 0;
+                bottom: 52px;
+                z-index: 40;
+                width: 100%;
+                height: auto;
+                max-height: min(68dvh, 520px);
+                justify-content: flex-start;
+                margin: 0;
+                border-radius: 20px 20px 0 0;
+                border-top: 1px solid rgba(52, 211, 153, 0.35);
+                box-shadow: 0 -18px 40px rgba(0, 0, 0, 0.5);
+                transform: translateY(110%);
+                visibility: hidden;
+                pointer-events: none;
+                transition: transform 0.22s ease;
+            }
+            #right-sidebar.drawer-open {
+                transform: translateY(0);
+                visibility: visible;
+                pointer-events: auto;
+            }
+            /* The chat-open height rule is for the old stacked sidebar. The drawer sets its own height. */
+            #right-sidebar[data-panel="log"],
+            #right-sidebar.chat-open,
+            #right-sidebar.chat-open.chat-down {
+                height: min(68dvh, 520px);
+                max-height: min(68dvh, 520px);
+            }
+            #right-sidebar #tile-inspector-panel,
+            #right-sidebar #log-card,
+            #right-sidebar #my-deeds-mobile { display: none; }
+            #right-sidebar[data-panel="deed"] #tile-inspector-panel { display: block; }
+            #right-sidebar[data-panel="log"] #log-card { display: flex; flex: 1; min-height: 0; }
+            #right-sidebar[data-panel="deeds"] #my-deeds-mobile { display: block; }
+            #right-sidebar.chat-open[data-panel="deed"] #tile-inspector-panel { display: block; }
+        }
     </style>
     <!-- Utilities load last so they win over Font Awesome, the same order the Tailwind CDN used. -->
     <link rel="stylesheet" href="assets/tailwind.css">
@@ -460,7 +727,7 @@
                 <button onclick="openShareModal()" class="text-slate-400 hover:text-white transition px-1" title="Multiplayer Room & Invite Link">
                     <i class="fa-solid fa-share-nodes text-xs"></i>
                 </button>
-                <button id="btn-reconnect-p2p" onclick="reconnectMultiplayerRoom(false)" class="hidden text-amber-400 hover:text-amber-300 transition px-1" title="Reconnect P2P / Relay">
+                <button id="btn-reconnect-p2p" onclick="reconnectMultiplayerRoom(false)" class="hidden text-amber-400 hover:text-amber-300 transition px-1" title="Reconnect to the room">
                     <i class="fa-solid fa-rotate text-xs"></i>
                 </button>
             </div>
@@ -507,8 +774,10 @@
     <main class="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
 
         <!-- LEFT SIDEBAR: PLAYERS ROSTER & PORTFOLIO -->
-        <aside class="w-full lg:w-72 shrink-0 bg-slate-900/80 border-b lg:border-b-0 lg:border-r border-slate-800/90 flex flex-col justify-between p-2.5 sm:p-3.5 gap-3 overflow-y-auto z-20 max-h-[26vh] lg:max-h-none">
-            <div class="space-y-3">
+        <aside id="left-sidebar" class="w-full lg:w-72 shrink-0 bg-slate-900/80 border-b lg:border-b-0 lg:border-r border-slate-800/90 flex flex-col justify-between p-2.5 sm:p-3.5 gap-3 overflow-y-auto z-20 max-h-[26vh] lg:max-h-none">
+            <!-- One line of cash on a phone. The full roster stays in the DOM for wider screens. -->
+            <div id="roster-cash-strip" aria-label="Player cash"></div>
+            <div class="space-y-3 roster-desktop">
                 <!-- Active Player Compact Status Card -->
                 <div class="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-3 space-y-2 shadow-lg">
                     <div class="flex items-center justify-between">
@@ -540,7 +809,8 @@
         </aside>
 
         <!-- CENTER STAGE: 2D & 3D BOARD -->
-        <section id="board-stage-area" class="flex-1 relative flex items-center justify-center p-2 sm:p-4 overflow-hidden bg-slate-950/60">
+        <section id="board-stage-area" class="flex-1 min-h-0 relative flex items-center justify-center p-2 sm:p-4 overflow-hidden bg-slate-950/60">
+            <div id="selected-tile-chip" aria-live="polite"></div>
 
             <!-- Toast Banner -->
             <div id="banner-toast" role="status" aria-live="polite" class="pointer-events-none fixed top-16 left-1/2 -translate-x-1/2 z-50 opacity-0 -translate-y-2 transition-all duration-300 bg-slate-900/95 border border-emerald-500/50 text-white px-4 py-2 rounded-2xl shadow-2xl text-xs sm:text-sm font-bold flex items-center gap-2">
@@ -601,7 +871,7 @@
                                     <div id="die-face-1" class="pip-die" data-val="1"></div>
                                     <div id="die-face-2" class="pip-die" data-val="1"></div>
                                 </div>
-                                <div class="flex items-center gap-1.5 h-5">
+                                <div id="dice-result-row" class="hidden flex items-center gap-1.5 h-5">
                                     <span id="dice-sum-pill" class="text-[10px] font-mono font-extrabold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">Total: 2</span>
                                     <span id="dice-doubles-pill" class="hidden text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse">⚡ DOUBLES!</span>
                                 </div>
@@ -614,10 +884,11 @@
                                     <span>View final result</span>
                                 </button>
 
-                                <button id="btn-roll-dice" onclick="handleRollDice()" class="cta-roll-pulse w-full max-w-[220px] py-2.5 px-5 rounded-2xl font-black text-xs sm:text-sm bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white shadow-xl flex items-center justify-center gap-2 transition active:scale-95 disabled:opacity-40 disabled:pointer-events-none">
+                                <button id="btn-roll-dice" onclick="handleRollDice()" aria-describedby="roll-first-hint" class="cta-roll-pulse w-full max-w-[220px] py-2.5 px-5 rounded-2xl font-black text-xs sm:text-sm bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white shadow-xl flex items-center justify-center gap-2 transition active:scale-95 disabled:opacity-40 disabled:pointer-events-none">
                                     <i class="fa-solid fa-dice text-base"></i>
                                     <span>ROLL DICE</span>
                                 </button>
+                                <p id="roll-first-hint" class="hidden">Your turn — tap Roll to move</p>
 
                                 <button id="btn-buy-property" onclick="handleBuyProperty()" class="hidden py-2 px-3.5 rounded-xl font-extrabold text-xs bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-lg flex items-center justify-center gap-1.5 transition active:scale-95">
                                     <i class="fa-solid fa-cart-shopping"></i>
@@ -634,7 +905,7 @@
                                     <span id="btn-bail-label">Pay Bail</span>
                                 </button>
 
-                                <button id="btn-bribe-guard" onclick="handleBribeGuard()" title="50% chance the guard takes the money and jails you anyway" class="hidden py-2 px-3.5 rounded-xl font-bold text-xs bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 flex items-center justify-center gap-1.5 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300">
+                                <button id="btn-bribe-guard" onclick="handleBribeGuard()" title="Jail gate: a 50% chance to walk free. The guard keeps the money even if you still go to jail." class="hidden py-2 px-3.5 rounded-xl font-bold text-xs bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 flex items-center justify-center gap-1.5 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300">
                                     <i class="fa-solid fa-user-secret"></i>
                                     <span id="btn-bribe-label">Bribe</span>
                                 </button>
@@ -691,7 +962,7 @@
                     <button id="btn-3d-bail" onclick="handlePayJailBail()" class="hidden py-2 px-3.5 rounded-xl font-bold text-xs bg-rose-500/25 hover:bg-rose-500/35 text-rose-200 border border-rose-500/40 transition">
                         <span id="btn-3d-bail-label">Pay Bail</span>
                     </button>
-                    <button id="btn-3d-bribe" onclick="handleBribeGuard()" title="50% chance the guard takes the money and jails you anyway" class="hidden py-2 px-3.5 rounded-xl font-bold text-xs bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300">
+                    <button id="btn-3d-bribe" onclick="handleBribeGuard()" title="Jail gate: a 50% chance to walk free. The guard keeps the money even if you still go to jail." class="hidden py-2 px-3.5 rounded-xl font-bold text-xs bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300">
                         <span id="btn-3d-bribe-label">Bribe</span>
                     </button>
                     <button id="btn-3d-borrow" onclick="handleBorrowAhLong()" class="hidden py-2 px-3.5 rounded-xl font-extrabold text-xs bg-gradient-to-r from-amber-500 to-rose-600 hover:from-amber-400 hover:to-rose-500 text-white transition">
@@ -707,8 +978,19 @@
             </div>
         </section>
 
+        <nav id="mobile-panel-bar" role="tablist" aria-label="Board panels">
+            <button type="button" role="tab" data-panel="deed" aria-selected="false" onclick="setMobilePanel('deed')">Deed</button>
+            <button type="button" role="tab" data-panel="log" aria-selected="false" onclick="setMobilePanel('log')">Log</button>
+            <button type="button" role="tab" data-panel="deeds" aria-selected="false" onclick="setMobilePanel('deeds')">My Deeds</button>
+        </nav>
+        <button id="mobile-drawer-backdrop" type="button" onclick="setMobilePanel('')" aria-label="Close panel"></button>
+
         <!-- RIGHT SIDEBAR: AUTHENTIC TITLE DEED INSPECTOR & LIVE LOG -->
         <aside id="right-sidebar" class="w-full lg:w-80 shrink-0 bg-slate-900/80 border-t lg:border-t-0 lg:border-l border-slate-800/90 flex flex-col justify-between p-2.5 sm:p-3.5 gap-3 overflow-y-auto z-20 max-h-[28vh] lg:max-h-none">
+            <div id="drawer-handle" class="items-center justify-between">
+                <span id="drawer-title" class="text-[11px] font-bold uppercase tracking-wider text-slate-300">Deed</span>
+                <button type="button" onclick="setMobilePanel('')" class="text-xs font-bold text-slate-300 px-2 py-1">Close</button>
+            </div>
             <div id="tile-inspector-panel" class="bg-slate-800/85 border border-slate-700/80 rounded-2xl p-3 space-y-2.5 shadow-lg"></div>
 
             <div id="log-card" class="flex-1 flex flex-col min-h-[120px] bg-slate-950/75 border border-slate-800/90 rounded-2xl p-2.5 overflow-hidden">
@@ -743,23 +1025,29 @@
                     </form>
                 </div>
             </div>
+            <div id="my-deeds-mobile" class="bg-slate-800/45 border border-slate-800 rounded-xl p-2.5">
+                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">My Deeds Portfolio</div>
+                <div id="my-portfolio-pills-mobile" class="flex flex-wrap gap-1"></div>
+            </div>
         </aside>
     </main>
 
     <!-- PRE-GAME START MENU & MULTIPLAYER LOBBY MODAL -->
-    <div id="start-menu-modal" class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-        <div class="bg-slate-900 border border-slate-700/80 rounded-3xl max-w-2xl w-full p-4 sm:p-6 shadow-2xl space-y-4 my-auto max-h-[94vh] overflow-y-auto">
+    <div id="start-menu-modal" class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4">
+        <div class="bg-slate-900 border border-slate-700/80 rounded-3xl max-w-2xl w-full shadow-2xl my-auto max-h-[94dvh] flex flex-col overflow-hidden">
+            <div class="min-h-0 overflow-y-auto p-4 sm:p-6 space-y-4">
             <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-3">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg">
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-10 h-10 shrink-0 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg">
                         <i class="fa-solid fa-crown text-white text-lg"></i>
                     </div>
-                    <div>
+                    <div class="min-w-0">
                         <h2 class="text-lg sm:text-xl font-black tracking-tight text-white">PolyTycoon Setup & Lobby</h2>
-                        <p class="text-xs text-slate-400">Solo vs AI Bots, Pass & Play, or Live P2P/MQTT Online</p>
+                        <p class="text-xs text-slate-400">Solo vs bots, pass-and-play, or online with friends</p>
+                        <button type="button" onclick="openHowToPlay()" class="mt-1 text-[11px] font-bold text-emerald-300 underline underline-offset-2">How to play</button>
                     </div>
                 </div>
-                <span id="start-lobby-peer-count" class="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Local Mode</span>
+                <span id="start-lobby-peer-count" class="shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Local Mode</span>
             </div>
 
             <div class="grid grid-cols-2 gap-2 bg-slate-800/90 p-1 rounded-2xl border border-slate-700">
@@ -773,26 +1061,9 @@
                 </button>
             </div>
 
-            <div id="multiplayer-room-box" class="hidden bg-slate-800/60 border border-indigo-500/30 rounded-2xl p-3.5 space-y-3">
-                <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
-                    <div>
-                        <div class="text-xs font-extrabold text-indigo-300 uppercase tracking-wider">Online Room Synchronization</div>
-                        <p class="text-[11px] text-slate-400">Host a 6-character room or enter a friend's room code</p>
-                    </div>
-                    <button onclick="createOnlineRoom()" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition">
-                        <i class="fa-solid fa-plus"></i>
-                        <span>Host New Room</span>
-                    </button>
-                </div>
-
-                <div class="flex items-center gap-2">
-                    <input id="lobby-join-code" type="text" maxlength="6" placeholder="ROOM CODE (e.g. K9X2QD)" class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-mono font-bold uppercase text-white focus:outline-none focus:border-indigo-500">
-                    <button onclick="joinOnlineRoom()" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition">Join Room</button>
-                    <button onclick="copyInviteLink()" class="px-3 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold text-xs transition" title="Copy Invite Link">
-                        <i class="fa-solid fa-link"></i>
-                    </button>
-                </div>
-                <p id="lobby-room-status" class="hidden text-xs text-emerald-400 font-semibold"></p>
+            <div id="multiplayer-room-box" class="hidden bg-slate-800/60 border border-indigo-500/30 rounded-2xl p-3.5 space-y-1">
+                <div class="text-xs font-extrabold text-indigo-300 uppercase tracking-wider">Play online with friends</div>
+                <p class="text-[11px] text-slate-400">Host a room and share the code, or type a friend's code. Host, Join, and Start stay pinned along the bottom.</p>
             </div>
 
             <div class="bg-slate-800/60 border border-slate-700/80 rounded-2xl p-3.5 space-y-3">
@@ -807,7 +1078,7 @@
                     </div>
                     <div>
                         <label class="text-[11px] text-slate-400 font-semibold block mb-1">Token & Color</label>
-                        <div class="flex items-center gap-2">
+                        <div class="flex flex-wrap items-center gap-2">
                             <div id="my-token-picker" class="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-700"></div>
                             <div id="my-color-picker" class="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-700"></div>
                         </div>
@@ -847,36 +1118,65 @@
                         <option value="5000">$5,000 (Magnate)</option>
                     </select>
                 </div>
-                <div class="flex flex-col justify-center gap-1 pt-2 sm:pt-0">
-                    <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
-                        <input id="rule-free-parking" type="checkbox" checked onchange="updateHouseRule('freeParkingJackpot', this.checked)" class="rounded accent-emerald-500">
-                        <span>Free Parking Jackpot</span>
-                    </label>
-                    <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
-                        <input id="rule-double-go" type="checkbox" checked onchange="updateHouseRule('doubleOnGo', this.checked)" class="rounded accent-emerald-500">
-                        <span>2x Salary on Exact GO</span>
-                    </label>
-                    <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
-                        <input id="rule-ahlong" type="checkbox" checked onchange="updateHouseRule('ahlongEnabled', this.checked)" class="rounded accent-emerald-500">
-                        <span>Ah Long Loans</span>
-                    </label>
-                    <label class="flex items-center justify-between gap-2 text-xs text-slate-300">
-                        <span>Match Length</span>
+                <div class="flex flex-col justify-center gap-1.5 pt-2 sm:pt-0">
+                    <div class="flex items-center gap-1.5">
+                        <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                            <input id="rule-free-parking" type="checkbox" checked onchange="updateHouseRule('freeParkingJackpot', this.checked)" class="rounded accent-emerald-500">
+                            <span>Free Parking Jackpot</span>
+                        </label>
+                        <button type="button" class="rule-tip" data-tip="Fines and taxes pile up here. Land on Free Parking to take the pot." aria-label="Free Parking Jackpot: fines and taxes pile up here. Land on Free Parking to take the pot." onclick="toggleRuleTip(event, this)">?</button>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                            <input id="rule-double-go" type="checkbox" checked onchange="updateHouseRule('doubleOnGo', this.checked)" class="rounded accent-emerald-500">
+                            <span>2x Salary on Exact GO</span>
+                        </label>
+                        <button type="button" class="rule-tip" data-tip="Passing GO pays salary. Landing on GO by an exact count pays double." aria-label="2x salary on exact GO: passing GO pays salary. Landing on GO by an exact count pays double." onclick="toggleRuleTip(event, this)">?</button>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                            <input id="rule-ahlong" type="checkbox" checked onchange="updateHouseRule('ahlongEnabled', this.checked)" class="rounded accent-emerald-500">
+                            <span>Ah Long Loans</span>
+                        </label>
+                        <button type="button" class="rule-tip" data-tip="A loan when you're short on cash. You repay more, a few of your turns later." aria-label="Ah Long loans: borrow when you're short, then repay more a few turns later." onclick="toggleRuleTip(event, this)">?</button>
+                    </div>
+                    <div class="flex items-center justify-between gap-2 text-xs text-slate-300">
+                        <span class="inline-flex items-center gap-1.5">
+                            Match Length
+                            <button type="button" class="rule-tip" data-tip="Classic plays until one tycoon is left. A round limit crowns the richest." aria-label="Match length: classic plays until one tycoon is left. A round limit crowns the richest." onclick="toggleRuleTip(event, this)">?</button>
+                        </span>
                         <select id="rule-end-mode" onchange="setEndMode(this.value)" class="bg-slate-900 border border-slate-700 rounded-lg px-1.5 py-1 text-[11px] font-bold text-white">
                             <option value="classic">Classic (no limit)</option>
                             <option value="10">10 rounds</option>
                             <option value="20">20 rounds</option>
                             <option value="30">30 rounds</option>
                         </select>
-                    </label>
+                    </div>
                 </div>
             </div>
             <p id="lobby-rules-readonly-note" class="hidden text-[11px] text-slate-400">Only the host can change the board and house rules.</p>
+            </div>
 
-            <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
-                <p id="lobby-not-ready" class="hidden mr-auto text-[11px] font-semibold text-amber-300 break-words min-w-0"></p>
-                <button id="btn-close-start-modal" onclick="closeLobbyOrShowResult()" class="hidden px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition">Resume Current Game</button>
-                <button id="btn-launch-match" onclick="startMatchFromLobby()" class="flex-1 sm:flex-none px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-extrabold text-sm shadow-lg shadow-emerald-600/25 transition">🚀 Start Match</button>
+            <div id="lobby-action-footer" class="shrink-0 border-t border-slate-800 bg-slate-900 px-4 sm:px-6 py-3 space-y-2">
+                <div id="lobby-footer-online" class="hidden flex flex-col gap-2">
+                    <div class="flex items-stretch gap-2">
+                        <button type="button" onclick="createOnlineRoom()" class="shrink-0 min-h-[44px] px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5">
+                            <i class="fa-solid fa-plus"></i>
+                            <span>Host</span>
+                        </button>
+                        <input id="lobby-join-code" type="text" maxlength="6" placeholder="ROOM CODE" aria-label="Room code" class="flex-1 min-w-0 bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs font-mono font-bold uppercase text-white focus:outline-none focus:border-indigo-500">
+                        <button type="button" onclick="joinOnlineRoom()" class="shrink-0 min-h-[44px] px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs">Join</button>
+                        <button type="button" onclick="copyInviteLink()" class="shrink-0 min-h-[44px] px-3 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold text-xs" title="Copy invite link" aria-label="Copy invite link">
+                            <i class="fa-solid fa-link"></i>
+                        </button>
+                    </div>
+                    <p id="lobby-room-status" class="hidden text-xs text-emerald-400 font-semibold"></p>
+                </div>
+                <div class="flex items-center justify-end gap-2">
+                    <p id="lobby-not-ready" class="hidden mr-auto text-[11px] font-semibold text-amber-300 break-words min-w-0"></p>
+                    <button id="btn-close-start-modal" onclick="closeLobbyOrShowResult()" class="hidden px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition">Resume Current Game</button>
+                    <button id="btn-launch-match" onclick="startMatchFromLobby()" class="flex-1 sm:flex-none min-h-[44px] px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-extrabold text-sm shadow-lg shadow-emerald-600/25 transition">🚀 Start Match</button>
+                </div>
             </div>
         </div>
     </div>
@@ -911,6 +1211,61 @@
                 <button onclick="createOnlineRoom()" class="flex-1 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs">Create New Online Room</button>
                 <button onclick="closeShareModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs">Done</button>
             </div>
+        </div>
+    </div>
+
+    <!-- HOW TO PLAY: one screen, opened from the lobby -->
+    <div id="how-to-play-modal" role="dialog" aria-modal="true" aria-labelledby="how-to-play-title" class="hidden fixed inset-0 z-[60] bg-slate-950/80 backdrop-blur-sm items-center justify-center p-3 sm:p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-lg w-full max-h-[92dvh] overflow-y-auto p-5 shadow-2xl space-y-3">
+            <div class="flex items-start justify-between gap-3">
+                <h2 id="how-to-play-title" class="text-lg font-black text-white">How to play</h2>
+                <button type="button" onclick="closeHowToPlay()" class="text-slate-400 hover:text-white px-2" aria-label="Close how to play"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <p class="text-sm text-slate-300 leading-snug">Roll, move, and buy deeds. Charge rent when someone lands on yours. Own a full colour to build houses, then a hotel.</p>
+            <p class="text-sm text-slate-300 leading-snug">Doubles let you roll again. Three doubles in a row send you to jail. Pass GO to collect salary.</p>
+            <div class="bg-slate-800/70 border border-slate-700 rounded-2xl p-3 space-y-2">
+                <div class="text-xs font-extrabold uppercase tracking-wider text-amber-300">Jail gate vs the cell</div>
+                <p class="text-sm text-slate-200 leading-snug"><span class="font-bold text-amber-200">Gate.</span> Go To Jail, and the jail card, stop you at the gate. You are not locked up yet. Bribe the guard for a 50% chance to walk free — the guard keeps the money even if you still go in — or serve time and enter the cell.</p>
+                <p class="text-sm text-slate-200 leading-snug"><span class="font-bold text-rose-200">Cell.</span> Once inside, pay bail instead of rolling, or roll doubles to get out. After a roll fails, the cell bribe always works. It costs more, and it gives you the roll back.</p>
+            </div>
+            <p class="text-sm text-slate-300 leading-snug">Nasib (Chance) and Tabung Kebajikan (Community Chest) flip a card. Read it, then the effect happens.</p>
+            <p class="text-sm text-slate-300 leading-snug">If you can't pay, sell houses or mortgage deeds until the debt is covered. Ah Long is a loan when you're short: you repay more, a few turns later. Free Parking can hold a jackpot of fines. Landing on GO by an exact count pays double salary when that rule is on.</p>
+            <p class="text-sm text-slate-300 leading-snug">Last tycoon standing wins. A round limit instead crowns whoever is richest.</p>
+            <button type="button" onclick="closeHowToPlay()" class="w-full min-h-[44px] py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-sm">Got it</button>
+        </div>
+    </div>
+
+    <!-- CHANCE / COMMUNITY CHEST CARD -->
+    <div id="card-modal" role="dialog" aria-modal="true" aria-labelledby="card-modal-kicker" class="hidden fixed inset-0 z-[60] bg-slate-950/75 backdrop-blur-sm items-center justify-center p-4">
+        <div class="flex flex-col items-center gap-4">
+            <div class="card-scene">
+                <div id="card-flip" class="card-flip">
+                    <div class="card-face card-back" aria-hidden="true">
+                        <div class="card-back-flower">🌺</div>
+                        <div id="card-back-mark" class="card-back-mark">NASIB</div>
+                        <div class="text-[10px] font-bold tracking-widest text-amber-200/80">POLYTYCOON</div>
+                    </div>
+                    <div class="card-face card-front">
+                        <div id="card-modal-kicker" class="card-front-kicker">Nasib</div>
+                        <p id="card-modal-text"></p>
+                        <div class="mt-auto pt-4 text-[11px] font-semibold text-amber-900/70">Continue when you've read it.</div>
+                    </div>
+                </div>
+            </div>
+            <button id="card-modal-continue" type="button" onclick="dismissCardModal()" class="min-h-[44px] px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-sm">Continue</button>
+        </div>
+    </div>
+
+    <!-- RAISE FUNDS: one-tap sell / mortgage while a debt is open -->
+    <div id="raise-funds-sheet" role="dialog" aria-modal="true" aria-labelledby="raise-funds-title" class="hidden fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm items-end sm:items-center justify-center p-0 sm:p-4">
+        <div class="raise-sheet bg-slate-900 border border-amber-500/40 rounded-t-3xl sm:rounded-3xl p-4 sm:p-5 shadow-2xl space-y-3">
+            <div>
+                <h2 id="raise-funds-title" class="text-lg font-black text-white">You owe $0</h2>
+                <p id="raise-funds-detail" class="text-xs text-slate-300 mt-1"></p>
+            </div>
+            <div id="raise-funds-total" class="rounded-xl bg-slate-800 border border-slate-700 px-3 py-2 text-sm font-bold text-amber-200"></div>
+            <div id="raise-funds-list" class="space-y-2"></div>
+            <div id="raise-funds-extra"></div>
         </div>
     </div>
 
@@ -2818,6 +3173,11 @@
                 }
             }
             playEffects(ev.effects, null);
+            // A local human sees the card before the cash and position update.
+            // Bots and online rooms do not wait, so a missed tap cannot stall the match.
+            if (cardHoldPromise) {
+                try { await cardHoldPromise; } catch (e) { /* the reveal timer already settled */ }
+            }
         }
 
         function syncRosterBookkeeping() {
@@ -3649,10 +4009,6 @@
             const net = getNetTransportSummary();
             const humanPlayersCount = gameState.players.filter(p => !p.isBot).length;
             const hostAlive = isRoomHost || (netLastHostSeenAt > 0 && Date.now() - netLastHostSeenAt < NET_HOST_TIMEOUT_MS);
-            const linkLabel = [
-                net.brokers ? `Relay×${net.brokers}` : '',
-                net.openPeers ? `P2P×${net.openPeers}` : ''
-            ].filter(Boolean).join(' + ') || 'connecting';
 
             const GREEN = "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30";
             const AMBER = "bg-amber-500/20 text-amber-300 border border-amber-500/30";
@@ -3663,9 +4019,9 @@
                 tone = net.online ? GREEN : AMBER;
                 badgeText = net.online ? `Host (${code}) • ${humanPlayersCount} Human(s)` : `Host (${code}) • Reconnecting...`;
                 shareText = net.online
-                    ? `🟢 Room ${code} Active (${humanPlayersCount} Human Player(s) in Lobby) • ${linkLabel}`
-                    : `🟡 Reconnecting Room ${code}...`;
-                lobbyText = `${net.online ? '🟢' : '🟡'} Hosting Room ${code} (${humanPlayersCount} Human Seat(s) • ${gameState.players.length} Total)`;
+                    ? `🟢 Room ${code} is live — ${humanPlayersCount} player${humanPlayersCount === 1 ? '' : 's'} in the lobby`
+                    : `🟡 Reconnecting to room ${code}...`;
+                lobbyText = `${net.online ? '🟢' : '🟡'} Hosting room ${code} (${humanPlayersCount} human, ${gameState.players.length} seats)`;
             } else if (!net.online) {
                 tone = AMBER;
                 badgeText = `Connecting (${code})...`;
@@ -3682,10 +4038,10 @@
             } else {
                 tone = isConfirmedInHostRoster ? GREEN : AMBER;
                 badgeText = `Live (${code}) • Connected`;
-                shareText = `🟢 Room ${code} Active (${humanPlayersCount} Human Player(s) in Lobby) • ${linkLabel}`;
+                shareText = `🟢 Room ${code} is live — ${humanPlayersCount} player${humanPlayersCount === 1 ? '' : 's'} in the lobby`;
                 lobbyText = isConfirmedInHostRoster
-                    ? `🟢 Connected to Lobby ${code} (${gameState.players.length} Seats Synced)`
-                    : `🟡 Joining Room ${code}...`;
+                    ? `🟢 In room ${code} (${gameState.players.length} seats)`
+                    : `🟡 Joining room ${code}...`;
             }
 
             const badge = document.getElementById('connection-badge');
@@ -4348,7 +4704,10 @@
             chatActiveTab = tab;
             chatRosterSig = chatComputeRosterSig();
             chatSyncChrome();
-            if (tab === 'chat') chatRenderAll(true);
+            if (tab === 'chat') {
+                chatRenderAll(true);
+                if (isNarrowLayout()) openMobilePanel('log');
+            }
         }
 
         function chatTabKeydown(e) {
@@ -5112,7 +5471,7 @@
                     return seat;
                 });
             if (!keptSeats.length) {
-                keptSeats.push({ id: myLocalSeatId, name: 'TycoonAlex', color: '#38bdf8', token: 'hat', cash: startCash, position: 0, inJail: false, jailTurns: 0, isBot: false, ready: true, bankrupt: false, tokenHash: fnv1a64(mySeatToken) });
+                keptSeats.push({ id: myLocalSeatId, name: readSavedDisplayName() || 'TycoonAlex', color: '#38bdf8', token: 'hat', cash: startCash, position: 0, inJail: false, jailTurns: 0, isBot: false, ready: true, bankrupt: false, tokenHash: fnv1a64(mySeatToken) });
             }
             const fresh = PolyEngine.createInitialState({
                 roomCode: code, mapId: prior.mapId, startingCash: startCash, players: keptSeats,
@@ -5355,9 +5714,10 @@
             if (!me) return;
 
             if (field === 'name') {
-                me.name = netCleanText(value) || 'Tycoon';
+                me.name = netCleanText(value, 20) || 'Tycoon';
                 const lobbyName = document.getElementById('lobby-player-name');
                 if (lobbyName && document.activeElement !== lobbyName) lobbyName.value = me.name;
+                rememberDisplayName(me.name);
             } else if (field === 'token') {
                 me.token = netCleanToken(value, me.token);
                 playSoundEffect('step');
@@ -5585,6 +5945,8 @@
                 tabMulti.className = `py-2 px-3 rounded-xl font-bold text-xs sm:text-sm transition flex items-center justify-center gap-2 ${isMP ? 'bg-indigo-600 text-white' : 'text-slate-300 hover:text-white'}`;
             }
             if (mpBox) mpBox.classList.toggle('hidden', !isMP);
+            const footerOnline = document.getElementById('lobby-footer-online');
+            if (footerOnline) footerOnline.classList.toggle('hidden', !isMP);
 
             const me = getMyLobbyPlayer();
             const nameInput = document.getElementById('start-my-name-input');
@@ -5784,8 +6146,17 @@
             const stage = document.getElementById('board-stage-area');
             const grid = document.getElementById('board-2d-grid');
             if (!stage || !grid) return;
-            const pad = 16;
-            const size = Math.max(290, Math.min(stage.clientWidth - pad, stage.clientHeight - pad, 760));
+            const narrowStage = stage.clientWidth > 0 && stage.clientWidth < 1024;
+            const pad = narrowStage ? 8 : 16;
+            const chip = document.getElementById('selected-tile-chip');
+            const chipH = chip && chip.offsetParent !== null ? chip.offsetHeight + 6 : 0;
+            const availW = stage.clientWidth - pad;
+            const availH = stage.clientHeight - pad - chipH;
+            // jsdom reports a 0×0 stage. Keep the old floor there so the board still mounts.
+            const fit = (stage.clientWidth > 0 && stage.clientHeight > 0)
+                ? Math.min(availW, availH, 760)
+                : 290;
+            const size = Math.max(160, Math.floor(fit));
             grid.style.width = `${size}px`;
             grid.style.height = `${size}px`;
             // Below ~420px of board the hub's full stack cannot fit, so it switches to the
@@ -6040,7 +6411,10 @@
             }
         }
 
-        function handleRollDice() { dispatchSeatAction('roll'); }
+        function handleRollDice() {
+            if (canLocalUserAct() && !isAnimatingMove && gameState.turnPhase === 'ROLL') rollHintDismissed = true;
+            dispatchSeatAction('roll');
+        }
         function handleBuyProperty() { dispatchSeatAction('buy'); }
         function handleUpgradeCurrentTile(explicitTileId) {
             const current = getCurrentPlayer();
@@ -6239,6 +6613,10 @@
 
         let toastTimeout = null;
         function showBannerToast(msg) {
+            if (typeof msg === 'string' && msg.startsWith('🃏')) {
+                showDrawnCard(msg);
+                return;
+            }
             const toast = document.getElementById('banner-toast');
             const text = document.getElementById('banner-toast-text');
             if (!toast || !text) return;
@@ -6250,6 +6628,292 @@
                 toast.classList.add('opacity-0', '-translate-y-2');
                 toast.classList.remove('opacity-100', 'translate-y-0');
             }, 3200);
+        }
+
+        const DISPLAY_NAME_KEY = 'polytycoon.displayName';
+        let rollHintDismissed = false;
+        let rollHintMatchLogId = null;
+        let cardQueue = [];
+        let cardModalTimer = null;
+        let cardHoldTimer = null;
+        let cardHoldResolve = null;
+        let cardHoldPromise = null;
+
+        function readSavedDisplayName() {
+            try {
+                return netCleanText(localStorage.getItem(DISPLAY_NAME_KEY) || '', 20);
+            } catch (e) { return ''; }
+        }
+
+        function rememberDisplayName(name) {
+            const clean = netCleanText(name, 20);
+            if (!clean || clean === 'Tycoon') return;
+            try { localStorage.setItem(DISPLAY_NAME_KEY, clean); } catch (e) {}
+        }
+
+        function applySavedDisplayName() {
+            const saved = readSavedDisplayName();
+            if (!saved) return;
+            const nameInput = document.getElementById('start-my-name-input');
+            const shareInput = document.getElementById('lobby-player-name');
+            if (nameInput && (!nameInput.value || nameInput.value === 'TycoonAlex')) nameInput.value = saved;
+            if (shareInput && (!shareInput.value || shareInput.value === 'TycoonAlex')) shareInput.value = saved;
+            const me = gameState.players.find(p => !p.isBot);
+            if (me && (!me.name || me.name === 'TycoonAlex') && gameState.roomCode === 'LOCAL' && gameState.status === 'setup') {
+                me.name = saved;
+            }
+        }
+
+        function isNarrowLayout() {
+            return Boolean(window.matchMedia && window.matchMedia('(max-width: 1023.98px)').matches);
+        }
+
+        function setMobilePanel(panel) {
+            const sidebar = document.getElementById('right-sidebar');
+            if (!sidebar) return;
+            const open = sidebar.classList.contains('drawer-open') && sidebar.dataset.panel === panel;
+            const next = (!panel || open) ? '' : panel;
+            sidebar.classList.toggle('drawer-open', Boolean(next));
+            sidebar.dataset.panel = next;
+            document.querySelectorAll('#mobile-panel-bar button').forEach(btn => {
+                btn.setAttribute('aria-selected', btn.dataset.panel === next ? 'true' : 'false');
+            });
+            const backdrop = document.getElementById('mobile-drawer-backdrop');
+            if (backdrop) backdrop.classList.toggle('is-open', Boolean(next));
+            const title = document.getElementById('drawer-title');
+            const labels = { deed: 'Deed', log: 'Activity', deeds: 'My Deeds' };
+            if (title) title.textContent = labels[next] || 'Board';
+        }
+
+        function openMobilePanel(panel) {
+            const sidebar = document.getElementById('right-sidebar');
+            if (!sidebar || (sidebar.dataset.panel === panel && sidebar.classList.contains('drawer-open'))) return;
+            setMobilePanel(panel);
+        }
+
+        function openHowToPlay() {
+            const modal = document.getElementById('how-to-play-modal');
+            if (!modal) return;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeHowToPlay() {
+            const modal = document.getElementById('how-to-play-modal');
+            if (!modal) return;
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function toggleRuleTip(event, btn) {
+            if (event) { event.preventDefault(); event.stopPropagation(); }
+            if (!btn) return;
+            const willOpen = !btn.classList.contains('tip-open');
+            document.querySelectorAll('.rule-tip.tip-open').forEach(el => el.classList.remove('tip-open'));
+            if (willOpen) btn.classList.add('tip-open');
+        }
+
+        function syncRollHintForMatch() {
+            const logs = gameState.logs || [];
+            let id = null;
+            for (let i = logs.length - 1; i >= 0; i--) {
+                if (String(logs[i].text || '').includes('New match started')) { id = logs[i].id; break; }
+            }
+            if (id != null && id !== rollHintMatchLogId) {
+                rollHintMatchLogId = id;
+                rollHintDismissed = false;
+            }
+        }
+
+        function diceHaveBeenRolled() {
+            const logs = gameState.logs || [];
+            let start = 0;
+            for (let i = logs.length - 1; i >= 0; i--) {
+                if (String(logs[i].text || '').includes('New match started')) { start = i + 1; break; }
+            }
+            for (let i = start; i < logs.length; i++) {
+                if (/ rolled /.test(String(logs[i].text || ''))) return true;
+            }
+            if (gameState.status === 'playing' && ((Number(gameState.turnCount) || 0) > 0 || gameState.turnPhase === 'END' || gameState.turnPhase === 'RAISE')) return true;
+            return false;
+        }
+
+        function renderCashStrip() {
+            const strip = document.getElementById('roster-cash-strip');
+            if (!strip) return;
+            const turn = gameState.players.length ? (gameState.turnIndex % gameState.players.length) : 0;
+            strip.innerHTML = gameState.players.map((p, idx) => {
+                const bust = p.bankrupt ? ' is-bust' : '';
+                const on = idx === turn ? ' is-turn' : '';
+                return `<div class="cash-strip-chip${on}${bust}">
+                    <span class="cash-strip-dot" style="background:${p.color}"><i class="fa-solid ${TOKEN_ICONS[p.token] || 'fa-hat-cowboy'}"></i></span>
+                    <span style="max-width:88px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(p.name)}</span>
+                    <span class="cash-strip-amt">$${Math.max(0, Math.trunc(Number(p.cash) || 0))}</span>
+                </div>`;
+            }).join('');
+        }
+
+        function renderSelectedTileChip() {
+            const chip = document.getElementById('selected-tile-chip');
+            if (!chip) return;
+            const current = getCurrentPlayer();
+            if (current && current.pendingJail) {
+                chip.textContent = 'Jail gate — you are not locked up yet. The bribe is a 50% gamble and the guard keeps the money either way. Serve time to enter the cell.';
+                return;
+            }
+            if (current && current.inJail && gameState.turnPhase === 'END' && (current.jailTurns || 0) >= 1) {
+                chip.textContent = 'In the cell. Bail replaces your roll. The cell bribe always works, costs more, and gives the roll back.';
+                return;
+            }
+            if (current && current.inJail) {
+                chip.textContent = 'In the cell. Roll doubles or pay bail before you roll. The cell bribe is only after a failed roll.';
+                return;
+            }
+            const tile = BOARD_TILES[selectedTileId] || BOARD_TILES[0];
+            if (!tile) { chip.textContent = ''; return; }
+            const price = tile.price > 0 && tile.type !== 'tax' ? ` · $${tile.price}` : '';
+            chip.textContent = `${tile.name}${price}`;
+        }
+
+        function renderRaiseFundsSheet() {
+            const sheet = document.getElementById('raise-funds-sheet');
+            if (!sheet) return;
+            const current = getCurrentPlayer();
+            const owed = current && current.obligation && current.obligation.amount > 0 ? current.obligation.amount : 0;
+            const show = Boolean(owed && gameState.turnPhase === 'RAISE' && canLocalUserAct() && !current.isBot && !gameState.winnerId);
+            sheet.classList.toggle('hidden', !show);
+            sheet.classList.toggle('flex', show);
+            if (!show) return;
+            const cash = Math.max(0, Math.trunc(Number(current.cash) || 0));
+            const short = Math.max(0, owed - cash);
+            const payee = current.obligation.to
+                ? ((gameState.players.find(p => p.id === current.obligation.to) || {}).name || 'another player')
+                : 'the bank';
+            const where = current.obligation.tileName ? ` on ${current.obligation.tileName}` : '';
+            const title = document.getElementById('raise-funds-title');
+            if (title) title.textContent = `You owe $${owed}`;
+            const detail = document.getElementById('raise-funds-detail');
+            if (detail) detail.textContent = `Pay ${payee}${where}. Sell a house or mortgage a deed. This closes once you can cover it.`;
+            const total = document.getElementById('raise-funds-total');
+            if (total) total.textContent = short > 0 ? `Cash $${cash} · still short $${short}` : `Cash $${cash} · enough to cover $${owed}`;
+            const list = document.getElementById('raise-funds-list');
+            if (list) {
+                const owned = BOARD_TILES.filter(t => gameState.properties[t.id]?.owner === current.id);
+                list.innerHTML = owned.length ? owned.map(t => {
+                    const prop = gameState.properties[t.id];
+                    const houses = prop.houses || 0;
+                    const canSell = previewAction('sellhouse', t.id);
+                    const canMort = !prop.mortgaged && previewAction('mortgage', t.id);
+                    const sellFor = Math.floor((t.houseCost || 0) / 2);
+                    const mortFor = Math.floor((t.price || 0) / 2);
+                    const status = prop.mortgaged ? 'Mortgaged' : (houses === 5 ? 'Hotel' : (houses ? `${houses} house${houses === 1 ? '' : 's'}` : 'Open'));
+                    const matesHaveHouses = t.type === 'property' && BOARD_TILES.some(other => {
+                        if (other.type !== 'property' || other.color !== t.color) return false;
+                        const owned = gameState.properties[other.id];
+                        return owned && owned.owner === current.id && (owned.houses || 0) > 0;
+                    });
+                    const blocked = !canSell && !canMort
+                        ? (prop.mortgaged ? 'Already mortgaged' : (matesHaveHouses ? 'Clear houses on this colour first' : ''))
+                        : '';
+                    return `<div class="flex items-center justify-between gap-2 bg-slate-800/80 border border-slate-700 rounded-xl px-2.5 py-2">
+                        <div class="min-w-0">
+                            <div class="text-xs font-bold text-white truncate">${escapeHtml(t.name)}</div>
+                            <div class="text-[10px] text-slate-400">${status}${blocked ? ` · ${blocked}` : ''}</div>
+                        </div>
+                        <div class="flex items-center gap-1.5 shrink-0">
+                            ${canSell ? `<button type="button" onclick="handleSellHouse(${t.id})" class="px-2.5 py-1.5 rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-[11px]">Sell house +$${sellFor}</button>` : ''}
+                            ${canMort ? `<button type="button" onclick="handleToggleMortgage(${t.id})" class="px-2.5 py-1.5 rounded-lg bg-slate-600 hover:bg-slate-500 text-white font-bold text-[11px]">Mortgage +$${mortFor}</button>` : ''}
+                        </div>
+                    </div>`;
+                }).join('') : '<p class="text-xs text-slate-400">No deeds to sell or mortgage.</p>';
+            }
+            const extra = document.getElementById('raise-funds-extra');
+            if (extra) {
+                extra.innerHTML = previewAction('borrow')
+                    ? '<button type="button" onclick="handleBorrowAhLong()" class="w-full min-h-[44px] py-2 rounded-xl bg-gradient-to-r from-amber-500 to-rose-600 text-white font-extrabold text-xs">Borrow from the Ah Long</button>'
+                    : '';
+            }
+        }
+
+        function shouldHoldForCard() {
+            if (isOnlineRoom()) return false;
+            const actor = getCurrentPlayer();
+            return Boolean(actor && !actor.isBot);
+        }
+
+        function releaseCardHold() {
+            if (cardHoldTimer) { clearTimeout(cardHoldTimer); cardHoldTimer = null; }
+            const resolve = cardHoldResolve;
+            cardHoldResolve = null;
+            cardHoldPromise = null;
+            if (resolve) resolve();
+        }
+
+        function hideCardModal() {
+            const modal = document.getElementById('card-modal');
+            if (!modal) return;
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function describeDrawnCard(raw) {
+            const text = String(raw || '').replace(/^🃏\s*/, '').trim();
+            const themeCards = MAP_THEMES[gameState.mapId] || MAP_THEMES.malaysia;
+            const malaysia = gameState.mapId !== 'classic';
+            const deck = (themeCards.chest || []).some(c => c.text === text) ? 'chest' : 'chance';
+            return {
+                text: text || 'A card.',
+                label: deck === 'chest' ? (malaysia ? 'Tabung Kebajikan' : 'Community Chest') : (malaysia ? 'Nasib' : 'Chance'),
+                back: deck === 'chest' ? (malaysia ? 'KEBAJIKAN' : 'CHEST') : (malaysia ? 'NASIB' : 'CHANCE')
+            };
+        }
+
+        function presentCard(card) {
+            const modal = document.getElementById('card-modal');
+            const flip = document.getElementById('card-flip');
+            const kicker = document.getElementById('card-modal-kicker');
+            const body = document.getElementById('card-modal-text');
+            const mark = document.getElementById('card-back-mark');
+            if (!modal || !flip) return;
+            if (kicker) kicker.textContent = card.label;
+            if (body) body.textContent = card.text;
+            if (mark) mark.textContent = card.back;
+            flip.classList.remove('is-revealed');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            if (reduce) flip.classList.add('is-revealed');
+            else setTimeout(() => flip.classList.add('is-revealed'), 280);
+            if (cardModalTimer) clearTimeout(cardModalTimer);
+            const hold = shouldHoldForCard();
+            cardModalTimer = setTimeout(() => dismissCardModal(), hold ? 3200 : (isOnlineRoom() ? 2000 : 1600));
+            if (hold && !cardHoldResolve) {
+                cardHoldPromise = new Promise(resolve => { cardHoldResolve = resolve; });
+                cardHoldTimer = setTimeout(() => releaseCardHold(), 900);
+            }
+            if (hold) {
+                const btn = document.getElementById('card-modal-continue');
+                if (btn && typeof btn.focus === 'function') btn.focus();
+            }
+        }
+
+        function showDrawnCard(raw) {
+            const card = describeDrawnCard(raw);
+            cardQueue.push(card);
+            const modal = document.getElementById('card-modal');
+            const open = modal && !modal.classList.contains('hidden');
+            if (!open) presentCard(cardQueue[0]);
+        }
+
+        function dismissCardModal() {
+            if (cardModalTimer) { clearTimeout(cardModalTimer); cardModalTimer = null; }
+            cardQueue.shift();
+            if (cardQueue.length) {
+                presentCard(cardQueue[0]);
+                return;
+            }
+            hideCardModal();
+            releaseCardHold();
         }
 
         function addGameLog(text, type = 'system') {
@@ -6266,6 +6930,8 @@
             const cell = document.getElementById(`tile-2d-${tileId}`);
             if (cell) cell.classList.add('selected-tile');
             renderTileInspector();
+            renderSelectedTileChip();
+            if (isNarrowLayout()) openMobilePanel('deed');
         }
 
         function renderTileInspector() {
@@ -6332,7 +6998,8 @@
                             <span class="text-slate-400">Bail or serve</span>
                             <span class="font-extrabold text-slate-200">$${PolyEngine.scaledCash(gameState, 50)} • ${JAIL_TURNS_TO_SERVE} turns</span>
                         </div>
-                        <p class="text-[11px] text-slate-400 px-1">Go To Jail and the jail card stop at the gate. Inside, bail is paid instead of rolling, and the cell bribe buys the roll back.</p>
+                        <p class="text-[11px] text-slate-300 px-1 leading-snug"><span class="font-bold text-amber-200">Jail gate.</span> Go To Jail and the jail card stop you here. You are not locked up yet. The bribe is a coin flip, and the guard keeps the money even if you still go in. Serve time to enter the cell.</p>
+                        <p class="text-[11px] text-slate-300 px-1 leading-snug"><span class="font-bold text-rose-200">In the cell.</span> Pay bail instead of rolling, or roll doubles. After a roll fails, the cell bribe always works, costs more, and gives the roll back.</p>
                     ` : tile.type === 'tax' ? `
                         <div class="flex justify-between items-center bg-slate-900/60 px-2.5 py-1.5 rounded-lg font-mono text-[11px]">
                             <span class="text-slate-400">Tax due</span>
@@ -6355,10 +7022,13 @@
             renderPipDieElement(document.getElementById('die-3d-dock-1'), d1);
             renderPipDieElement(document.getElementById('die-3d-dock-2'), d2);
 
+            const diceShown = diceHaveBeenRolled();
+            const resultRow = document.getElementById('dice-result-row');
+            if (resultRow) resultRow.classList.toggle('hidden', !diceShown);
             const sumPill = document.getElementById('dice-sum-pill');
             if (sumPill) sumPill.textContent = `Total: ${(d1 || 1) + (d2 || 1)}`;
             const doublesPill = document.getElementById('dice-doubles-pill');
-            if (doublesPill) doublesPill.classList.toggle('hidden', d1 !== d2);
+            if (doublesPill) doublesPill.classList.toggle('hidden', !diceShown || d1 !== d2);
 
             const potEl = document.getElementById('center-jackpot-amount');
             if (potEl) potEl.textContent = gameState.freeParkingPot || 0;
@@ -6374,13 +7044,13 @@
                     if (gameState.turnPhase === 'RAISE' && current.obligation) {
                         subEl.textContent = `${current.name} must raise $${current.obligation.amount} — sell houses or mortgage`;
                     } else if (current.pendingJail) {
-                        subEl.textContent = `${current.name} is at the Jail gate: bribe the guard or serve time`;
+                        subEl.textContent = `${current.name} is at the jail gate, not locked up yet`;
                     } else if (current.inJail && gameState.turnPhase === 'END') {
                         subEl.textContent = (current.jailTurns || 0) >= 1
-                            ? `${current.name} is locked up: bribe the cell guard or end the turn`
-                            : `${current.name} is locked up for the rest of the turn`;
+                            ? `${current.name} is in the cell: the bribe gives the roll back`
+                            : `${current.name} is in the cell for the rest of this turn`;
                     } else if (current.inJail) {
-                        subEl.textContent = `${current.name} is in Jail: roll doubles, pay bail, or bribe`;
+                        subEl.textContent = `${current.name} is in the cell: roll doubles or pay bail`;
                     } else {
                         subEl.textContent = `${current.name}'s Turn • ${gameState.turnPhase === 'ROLL' ? 'Tap Dice or Roll to Move' : 'Buy, Build, or End Turn'}`;
                     }
@@ -6510,6 +7180,11 @@
             document.getElementById('dice-stage-2d')?.classList.toggle('hidden', matchOver);
 
             if (rollBtn) { rollBtn.disabled = !canAct || !showRoll || Boolean(current?.isBot); rollBtn.classList.toggle('hidden', matchOver || !showRoll); }
+            syncRollHintForMatch();
+            const rollHint = document.getElementById('roll-first-hint');
+            const showRollHint = !rollHintDismissed && showRoll && canAct && !current?.isBot && !matchOver;
+            if (rollHint) rollHint.classList.toggle('hidden', !showRollHint);
+            if (rollBtn && showRollHint) rollBtn.title = 'Your turn. Tap Roll to move around the board.';
             if (endBtn) { endBtn.disabled = !canAct || Boolean(current?.isBot); endBtn.classList.toggle('hidden', matchOver || showRoll || raising); }
             if (buyBtn) {
                 buyBtn.classList.toggle('hidden', matchOver || !canBuy);
@@ -6531,8 +7206,8 @@
                 const lbl = document.getElementById('btn-bribe-label');
                 if (lbl) lbl.textContent = canBribeCell ? `Bribe Cell Guard $${cellBribeCost}` : `Bribe Guard $${bribeCost} (50%)`;
                 bribeBtn.title = canBribeCell
-                    ? 'Certain release, but the guard keeps the money either way'
-                    : '50% chance the guard takes the money and jails you anyway';
+                    ? 'You are in the cell. This bribe always works and gives your roll back. Bail is cheaper, but you skip the roll.'
+                    : 'Jail gate, not the cell. 50% chance to walk free. The guard keeps the money even if you still go in.';
             }
             if (endBtn) {
                 const lbl = document.getElementById('btn-end-label');
@@ -6566,8 +7241,8 @@
             const bribe3dLbl = document.getElementById('btn-3d-bribe-label');
             if (bribe3dLbl) bribe3dLbl.textContent = canBribeCell ? `Bribe $${cellBribeCost}` : `Bribe $${bribeCost} 50%`;
             if (bribe3d) bribe3d.title = canBribeCell
-                ? 'Certain release, but the guard keeps the money either way'
-                : '50% chance the guard takes the money and jails you anyway';
+                ? 'You are in the cell. This bribe always works and gives your roll back. Bail is cheaper, but you skip the roll.'
+                : 'Jail gate, not the cell. 50% chance to walk free. The guard keeps the money even if you still go in.';
             const end3dLbl = document.getElementById('btn-3d-end-label');
             if (end3dLbl) end3dLbl.textContent = atJailGate ? 'SERVE TIME' : 'END TURN';
             const buy3dLbl = document.getElementById('btn-3d-buy-label');
@@ -6613,15 +7288,19 @@
                 }).join('');
             }
 
-            // Portfolio Pills
+            // Portfolio Pills. The phone copy lives in the drawer; the desktop copy stays in the left column.
             const portfolioEl = document.getElementById('my-portfolio-pills');
-            if (portfolioEl) {
+            const mobilePortfolioEl = document.getElementById('my-portfolio-pills-mobile');
+            if (portfolioEl || mobilePortfolioEl) {
                 const targetPlayer = isOnlineRoom() ? getMyLobbyPlayer() : current;
                 const owned = BOARD_TILES.filter(t => gameState.properties[t.id]?.owner === targetPlayer?.id);
-                portfolioEl.innerHTML = owned.length
-                    ? owned.map(t => `<button onclick="selectTileInspector(${t.id})" style="border-color:${t.color}" class="px-2 py-0.5 rounded-md bg-slate-900 border-l-4 text-[10px] font-bold text-slate-200 hover:bg-slate-700">${t.name}</button>`).join('')
+                const pillsHtml = owned.length
+                    ? owned.map(t => `<button onclick="selectTileInspector(${t.id})" style="border-color:${t.color}" class="px-2 py-0.5 rounded-md bg-slate-900 border-l-4 text-[10px] font-bold text-slate-200 hover:bg-slate-700">${escapeHtml(t.name)}</button>`).join('')
                     : '<span class="text-[11px] text-slate-500">No properties owned yet</span>';
+                if (portfolioEl) portfolioEl.innerHTML = pillsHtml;
+                if (mobilePortfolioEl) mobilePortfolioEl.innerHTML = pillsHtml;
             }
+            renderCashStrip();
 
             // Update 2D Board Tiles
             BOARD_TILES.forEach((tile, idx) => {
@@ -6666,14 +7345,18 @@
                 `).join('');
             }
 
+            renderSelectedTileChip();
+            renderRaiseFundsSheet();
             chatSyncChrome();
             sync3DTokensAndHouses();
+            updateBoardDimensions();
         }
 
         // =====================================================================
         // INITIALIZATION ON LOAD
         // =====================================================================
         window.onload = async function() {
+            applySavedDisplayName();
             const urlParams = new URLSearchParams(window.location.search);
             const paramMap = urlParams.get('map');
             const paramRoom = (urlParams.get('room') || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
