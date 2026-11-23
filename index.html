@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PolyTycoon 3D/2D — Multiplayer Board Game</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2310b981'/%3E%3Ctext x='16' y='22' text-anchor='middle' font-size='15' font-family='sans-serif' font-weight='700' fill='%23030712'%3EPT%3C/text%3E%3C/svg%3E">
-    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mqtt@5.3.4/dist/mqtt.min.js"></script>
@@ -430,6 +429,8 @@
             -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 14px), transparent 100%);
         }
     </style>
+    <!-- Utilities load last so they win over Font Awesome, the same order the Tailwind CDN used. -->
+    <link rel="stylesheet" href="assets/tailwind.css">
 </head>
 <body class="flex flex-col h-screen w-screen overflow-hidden select-none">
 
@@ -915,8 +916,18 @@
 
     <script>
         // Helper so user can download this exact file as index.html anytime
-        function downloadSelfAsIndexHtml() {
-            const htmlContent = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+        async function downloadSelfAsIndexHtml() {
+            const root = document.documentElement.cloneNode(true);
+            const sheets = root.querySelectorAll('link[rel="stylesheet"][href="assets/tailwind.css"]');
+            for (const link of sheets) {
+                try {
+                    const css = await (await fetch(link.getAttribute('href'))).text();
+                    const style = document.createElement('style');
+                    style.textContent = css;
+                    link.replaceWith(style);
+                } catch (e) {}
+            }
+            const htmlContent = '<!DOCTYPE html>\n' + root.outerHTML;
             const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
